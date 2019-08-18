@@ -1,12 +1,36 @@
 A Pythonic query language for time series data
 ----------------------------------------------
 
-.. image:: http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
-    :target: http://www.astropy.org
-    :alt: Powered by Astropy Badge
+* ALPHA Software.  Not ready for production usage *
 
+This library attempts to use generators in python as way to query various time series DBs. 
 
+Examples:
 
+```python
+#gets metric named test and returns the mean value
+q = Query(x.mean for x in "test")
+#gets metric named test where label1 is equal to 'prod'
+q = Query(x for x in "test" if x.label1 == 'prod') 
+# get 2 metrics and find the difference between max and min of those metrics grouped by the 'tag1' label
+q = Query(x - y for x,y in Query((x.max for x in "metric1"), (x.min for x in "metric2")).by('tag1'))
+#get streams for metric test from now-3600 seconds to now-1800 seconds with a resolution of 300 seconds
+q = Query(x.mean for x in "test")[3600:1800:300]
+```
+
+All queries return a numpy array with a time index column and one column per stream of data returned.  the
+labels can be accessed via the `label` attribute.  
+
+All ufuncs can be used against the data without modifying the time index columns
+
+Examples:
+
+```python
+#grouping by custom mean
+reduced = t.group('env', lambda x: np.add.reduce(x, axis=1) / (x.shape[1] - 1))
+```
+
+You can see the tests for more inspiration.
 
 License
 -------
@@ -21,31 +45,5 @@ more information.
 Contributing
 ------------
 
-We love contributions! timeseriesql is open source,
-built on open source, and we'd love to have you hang out in our community.
-
-**Imposter syndrome disclaimer**: We want your help. No, really.
-
-There may be a little voice inside your head that is telling you that you're not
-ready to be an open source contributor; that your skills aren't nearly good
-enough to contribute. What could you possibly offer a project like this one?
-
-We assure you - the little voice in your head is wrong. If you can write code at
-all, you can contribute code to open source. Contributing to open source
-projects is a fantastic way to advance one's coding skills. Writing perfect code
-isn't the measure of a good developer (that would disqualify all of us!); it's
-trying to create something, making mistakes, and learning from those
-mistakes. That's how we all improve, and we are happy to help others learn.
-
-Being an open source contributor doesn't just mean writing code, either. You can
-help out by writing documentation, tests, or even giving feedback about the
-project (and yes - that includes giving feedback about the contribution
-process). Some of these contributions may be the most valuable to the project as
-a whole, because you're coming to the project with fresh eyes, so you can see
-the errors and assumptions that seasoned contributors have glossed over.
-
-Note: This disclaimer was originally written by
-`Adrienne Lowe <https://github.com/adriennefriend>`_ for a
-`PyCon talk <https://www.youtube.com/watch?v=6Uj746j9Heo>`_, and was adapted by
-timeseriesql based on its use in the README file for the
-`MetPy project <https://github.com/Unidata/MetPy>`_.
+If you would like to write additional backends for various time series databases, 
+please reach out first.
