@@ -1,7 +1,7 @@
 A Pythonic query language for time series data
 ----------------------------------------------
 
-* ALPHA Software.  Not ready for production usage *
+**ALPHA Software.  Not ready for production usage**
 
 This library attempts to use generators in python as way to query various time series DBs. 
 
