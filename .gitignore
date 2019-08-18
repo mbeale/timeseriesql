@@ -58,3 +58,9 @@ distribute-*.tar.gz
 
 # Mac OSX
 .DS_Store
+
+#visual studio code
+.devcontainer/*
+.vscode/*
+.mypy_cache/*
+.coverage
