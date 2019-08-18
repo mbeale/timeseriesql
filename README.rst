@@ -9,12 +9,19 @@ Examples:
 ---------
 
   #gets metric named test and returns the mean value
+
   q = Query(x.mean for x in "test")
+  
   #gets metric named test where label1 is equal to 'prod'
+  
   q = Query(x for x in "test" if x.label1 == 'prod') 
+  
   # get 2 metrics and find the difference between max and min of those metrics grouped by the 'tag1' label
+  
   q = Query(x - y for x,y in Query((x.max for x in "metric1"), (x.min for x in "metric2")).by('tag1'))
+  
   #get streams for metric test from now-3600 seconds to now-1800 seconds with a resolution of 300 seconds
+  
   q = Query(x.mean for x in "test")[3600:1800:300]
 
 All queries return a numpy array with a time index column and one column per stream of data returned.  the
@@ -26,6 +33,7 @@ Examples:
 ---------
 
   #grouping by mean
+  
   reduced = t.group('env', lambda x: np.add.reduce(x, axis=1) / (x.shape[1] - 1))
 
 You can see the tests for more inspiration.
