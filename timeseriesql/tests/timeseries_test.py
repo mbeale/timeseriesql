@@ -111,7 +111,7 @@ class TestTimeSeries(unittest.TestCase):
         
 
     def test_merge_time_index(self):
-        t1,t2,t3 = self.basic_timeseries
+        t1,_,_ = self.basic_timeseries
         new_index = np.hstack([self.timeindex, [x for x in range(int(self.timeindex[-1]) + 60,int(self.timeindex[-1])+240, 60)]])
 
         rtn1 = t1._merge_time_indicies(self.timeindex, new_index)
@@ -160,10 +160,11 @@ class TestTimeSeries(unittest.TestCase):
         
 
     def test_index_by_datetime(self):
+
         t1,t2,t3 = self.basic_timeseries
         new_t = t1.merge([t2, t3])
-        beg = np.datetime64(int(self.timeindex[2]),'s')
-        end = np.datetime64(int(self.timeindex[5]),'s')
+        beg = np.datetime64(int(self.timeindex[2]),'s') #pylint: disable-msg=too-many-function-args
+        end = np.datetime64(int(self.timeindex[5]),'s') #pylint: disable-msg=too-many-function-args
 
         #datetime range
         self.assertTrue(np.array_equal(new_t[beg:end], new_t[2:5]))
@@ -178,10 +179,10 @@ class TestTimeSeries(unittest.TestCase):
         self.assertTrue(np.array_equal(new_t[:end], new_t[:5]))
 
         #get 3 minutes of data from start point
-        self.assertTrue(np.array_equal(new_t[beg:np.timedelta64(3, 'm')], new_t[2:5]))
+        self.assertTrue(np.array_equal(new_t[beg:np.timedelta64(3, 'm')], new_t[2:5])) #pylint: disable-msg=too-many-function-args
 
         #offset 3 minutes of data
-        self.assertTrue(np.array_equal(new_t[np.timedelta64(3, 'm'):], new_t[3:]))
+        self.assertTrue(np.array_equal(new_t[np.timedelta64(3, 'm'):], new_t[3:])) #pylint: disable-msg=too-many-function-args
 
         #end 3 minutes before ending
-        self.assertTrue(np.array_equal(new_t[:np.timedelta64(3, 'm')], new_t[:6]))
+        self.assertTrue(np.array_equal(new_t[:np.timedelta64(3, 'm')], new_t[:6])) #pylint: disable-msg=too-many-function-args

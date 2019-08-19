@@ -158,15 +158,15 @@ class Query:
                     else:
                         raise TypeError(f"Unexpected type of iterable ({type(argval)}")
                 elif instr.opname == 'STORE_FAST':
-                    plan.variables.append({'name': instr.argval, 'labels': []})
+                    plan.variables.append({'name': instr.argval, 'labels': []}) #pylint: disable-msg=no-member
                 elif instr.opname == 'YIELD_VALUE':
                     op_vars = []
                     for s in stack:
                         if s.opname == 'LOAD_FAST':
                             op_vars.append(s.argval)
                         elif s.opname == 'LOAD_ATTR':
-                            index = [i for i,f in enumerate(plan.variables) if f['name'] == op_vars[-1]][0]
-                            plan.variables[index]['labels'].append(s.argval)
+                            index = [i for i,f in enumerate(plan.variables) if f['name'] == op_vars[-1]][0] #pylint: disable-msg=no-member
+                            plan.variables[index]['labels'].append(s.argval) #pylint: disable-msg=no-member
                         elif s.opname == 'LOAD_CONST':
                             op_vars.append(s.argval)
                         elif s.opname.startswith('BINARY_'):
@@ -201,7 +201,7 @@ class Query:
                                 current = 'right'
                             f[current] = {'type': 'string', 'value': s.argval, 'labels': []}
                     stack = []
-                    plan.filters.append(f)
+                    plan.filters.append(f) #pylint: disable-msg=no-member
                 else:
                     stack.append(instr)
             plans.append(plan)
