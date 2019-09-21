@@ -89,21 +89,21 @@ class AOBackend(Query):
             if isinstance(m, Plan):
                 values.append(AOBackend().create_query(m, period))
             else:
-                label_size = len(plan.variables[i]['labels'])
+                label_size = len(plan.variables[i].labels)
                 if  label_size > 1:
-                    raise AttributeError('Only one label is supported for stream featching')
-                series_func = "mean" if label_size == 0 else plan.variables[i]['labels'][0]
+                    raise AttributeError('Only one label is supported for stream fetching')
+                series_func = "mean" if label_size == 0 else plan.variables[i].labels[0]
                 series_filter = "\"*\""
                 if len(plan.filters) > 0:
                     series_filter = '{'
                     for f in plan.filters:
                         if f['op'] != '==':
                             raise AttributeError(f"Only BINARY_EQUAL options are supported, {f['op']} received")
-                        var_loc = [k for k in f.keys() if k != 'op' if f[k]['type'] == 'var']
-                        string_loc = [k for k in f.keys() if k != 'op' if f[k]['type'] == 'string']
+                        var_loc = [k for k in f.keys() if k != 'op' if f[k].type == 'var']
+                        string_loc = [k for k in f.keys() if k != 'op' if f[k].type == 'string']
                         if len(var_loc) == 0 or len(string_loc) == 0:
                             raise AttributeError(f"Must have one string and one label allowed in the filter")
-                        series_filter += f"\"{f[var_loc[0]]['labels'][0]}\":\"{f[string_loc[0]]['value']}\""
+                        series_filter += f"\"{f[var_loc[0]].labels[0]}\":\"{f[string_loc[0]].value}\""
                     series_filter += '}'
                 series_def = CompositeDefinition(f"s(\"{m}\",{series_filter},{{period:\"{period['resolution']}\",\"function\":\"{series_func}\"}})")
                 if plan.group:
@@ -120,16 +120,16 @@ class AOBackend(Query):
         else:
             for e in plan.calc:
                 if len(e) == 3:
-                    left = e[0] if isinstance(e[0], numbers.Number) else [values[i] for i,n in enumerate(plan.variables)if n['name'] == e[0]][0]
-                    right = e[1] if isinstance(e[1], numbers.Number) else [values[i] for i,n in enumerate(plan.variables)if n['name'] == e[1]][0]
+                    left = e[0] if isinstance(e[0], numbers.Number) else [values[i] for i,n in enumerate(plan.variables)if n.name == e[0]][0]
+                    right = e[1] if isinstance(e[1], numbers.Number) else [values[i] for i,n in enumerate(plan.variables)if n.name == e[1]][0]
                     query = binary_operation(left, right, e[2])
                 else:
-                    right = e[0] if isinstance(e[0], numbers.Number) else [values[i] for i,n in enumerate(plan.variables)if n['name'] == e[0]][0]
+                    right = e[0] if isinstance(e[0], numbers.Number) else [values[i] for i,n in enumerate(plan.variables)if n.name == e[0]][0]
                     query = binary_operation(query, right, e[1])
         if plan.group:
             labels = ','.join([f"\"{l}\"" for l in plan.group[0]])
             query = CompositeDefinition(f"group_by({labels},{query})")
-        print(query)
+        #print(query)
         return query
 
     def execute_plan(self):

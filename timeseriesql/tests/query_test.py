@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 from timeseriesql.query import Query, Plan
 
+
 def todict(obj, classkey=None):
     if isinstance(obj, dict):
         data = {}
@@ -26,6 +27,9 @@ def todict(obj, classkey=None):
 
 class TestQuery(unittest.TestCase):
 
+    def setUp(self):
+        self.maxDiff = None
+
     def test_basic_query(self):
         q = Query(x for x in "test")
         expected_plan = {
@@ -49,11 +53,13 @@ class TestQuery(unittest.TestCase):
         self.assertEqual(todict(q._generate_plan()[0]), expected_plan)
 
     def test_basic_filter(self):
+        self.maxDiff = None
+
         q = Query(x for x in "test" if x.label1 == 'prod')
         expected_plan = {
                 "metrics": ["test"],
                 "calc": None,
-                "filters": [{'left': {'type': 'var', 'value': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod', 'labels':[]}}],
+                "filters": [{'left': {'type': 'var', 'name': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod'}}],
                 "group": None,
                 "variables": [{'name': 'x', 'labels': []}]
         }
@@ -64,7 +70,7 @@ class TestQuery(unittest.TestCase):
         expected_plan = {
                 "metrics": ["test"],
                 "calc": [['x', 100, 'BINARY_MULTIPLY']],
-                "filters": [{'left': {'type': 'var', 'value': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod', 'labels':[]}}],
+                "filters": [{'left': {'type': 'var', 'name': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod'}}],
                 "group": None,
                 "variables": [{'name': 'x', 'labels': []}]
         }
@@ -75,7 +81,7 @@ class TestQuery(unittest.TestCase):
         expected_plan = {
                 "metrics": ["test"],
                 "calc": [['x', 100, 'BINARY_MULTIPLY']],
-                "filters": [{'left': {'type': 'var', 'value': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod', 'labels':[]}}],
+                "filters": [{'left': {'type': 'var', 'name': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod'}}],
                 "group": [['label1'], 'mean'],
                 "variables": [{'name': 'x', 'labels': []}]
         }
@@ -86,7 +92,7 @@ class TestQuery(unittest.TestCase):
         expected_plan = {
                 "metrics": ["test"],
                 "calc": [['x', 100, 'BINARY_MULTIPLY'], ['x', 'BINARY_MULTIPLY']],
-                "filters": [{'left': {'type': 'var', 'value': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod', 'labels':[]}}],
+                "filters": [{'left': {'type': 'var', 'name': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod'}}],
                 "group": None,
                 "variables": [{'name': 'x', 'labels': []}]
         }
@@ -129,7 +135,45 @@ class TestQuery(unittest.TestCase):
         t4 = Query(x.mean for x in "test").fetch()
         t4_timeindex = np.array([np.float64(t4[0,0] + x) for x in range(0, 3600, Query().DEFAULT_RESOLUTION)], dtype=np.float64)
 
-        self.assertTrue(np.array_equal(t1.get_time_index, t1_timeindex))   
-        self.assertTrue(np.array_equal(t2.get_time_index, t2_timeindex))   
-        self.assertTrue(np.array_equal(t3.get_time_index, t3_timeindex))   
-        self.assertTrue(np.array_equal(t4.get_time_index, t4_timeindex))   
+        self.assertTrue(np.array_equal(t1.time, t1_timeindex))   
+        self.assertTrue(np.array_equal(t2.time, t2_timeindex))   
+        self.assertTrue(np.array_equal(t3.time, t3_timeindex))   
+        self.assertTrue(np.array_equal(t4.time, t4_timeindex))   
+
+    def test_query_with_varname_in_filter(self):
+        value = 'prod'
+        q = Query(x for x in "test" if x.label1 == value)
+        expected_plan = {
+                "metrics": ["test"],
+                "calc": None,
+                "filters": [{'left': {'type': 'var', 'name': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod'}}],
+                "group": None,
+                "variables": [{'name': 'x', 'labels': []}]
+        }
+        self.assertEqual(todict(q._generate_plan()[0]), expected_plan)
+
+    def test_query_with_string_variable_for_metric(self):
+        value = 'test'
+        q = Query(x for x in value if x.label1 == 'prod')
+        expected_plan = {
+                "metrics": ["test"],
+                "calc": None,
+                "filters": [{'left': {'type': 'var', 'name': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod'}}],
+                "group": None,
+                "variables": [{'name': 'x', 'labels': []}]
+        }
+        self.assertEqual(todict(q._generate_plan()[0]), expected_plan)
+
+    def test_for_loop_filter_variables(self):
+        filters = ['filter1', 'filter2','filter3']
+        for i in range(len(filters)):
+            q = Query(x for x in "test" if x.label1 == filters[i])
+            expected_plan = {
+                        "metrics": ["test"],
+                        "calc": None,
+                        "filters": [{'left': {'type': 'var', 'name': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': filters[i]}}],
+                        "group": None,
+                        "variables": [{'name': 'x', 'labels': []}]
+                }
+            self.assertEqual(todict(q._generate_plan()[0]), expected_plan)
+

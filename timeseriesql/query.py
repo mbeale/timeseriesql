@@ -3,9 +3,7 @@ import os
 import numpy as np
 import time
 from .timeseries import TimeSeries
-
-__all__ = ['Plan', 'Query']
-
+from .decompiler import Decompiler
 
 class Plan:
     """A basic class that holds the Plan execution details"""
@@ -136,7 +134,6 @@ class Query:
                 "vars": [{'name': 'x', 'labels': []}, {'name': 'y', 'labels': []}]
         }
         """
-        stack = []
         plans = []
         for g in self.generators:
             plan = Plan(**{
@@ -146,65 +143,7 @@ class Query:
                 'filters': self.filters,
                 'variables': []
             })
-            bytecode = dis.Bytecode(g)
-            for instr in bytecode:
-                if instr.opname == 'FOR_ITER':
-                    stack_val = stack.pop()
-                    argval = g.gi_frame.f_locals[stack_val.argval]
-                    if type(argval) == type(iter("")):
-                        plan.metrics = [''.join(argval)]
-                    elif isinstance(argval, Query):
-                        plan.metrics = argval._generate_plan()
-                    else:
-                        raise TypeError(f"Unexpected type of iterable ({type(argval)}")
-                elif instr.opname == 'STORE_FAST':
-                    plan.variables.append({'name': instr.argval, 'labels': []}) #pylint: disable-msg=no-member
-                elif instr.opname == 'YIELD_VALUE':
-                    op_vars = []
-                    for s in stack:
-                        if s.opname == 'LOAD_FAST':
-                            op_vars.append(s.argval)
-                        elif s.opname == 'LOAD_ATTR':
-                            index = [i for i,f in enumerate(plan.variables) if f['name'] == op_vars[-1]][0] #pylint: disable-msg=no-member
-                            plan.variables[index]['labels'].append(s.argval) #pylint: disable-msg=no-member
-                        elif s.opname == 'LOAD_CONST':
-                            op_vars.append(s.argval)
-                        elif s.opname.startswith('BINARY_'):
-                            if not plan.calc:
-                                plan.calc = []
-                            if len(op_vars) == 1:
-                                plan.calc.append([op_vars[0], s.opname])
-                            else:
-                                plan.calc.append([op_vars[0], op_vars[1], s.opname])
-                            op_vars = []
-                    stack = []
-                elif instr.opname == 'COMPARE_OP':
-                    f = {
-                        'left': None,
-                        'right': None,
-                        'op': instr.argval
-                    }
-                    current = None
-                    for s in stack:
-                        if s.opname == 'LOAD_FAST':
-                            if not current:
-                                current = 'left'
-                            else:
-                                current = 'right'
-                            f[current] = {'type': 'var', 'value': s.argval, 'labels': []}
-                        elif s.opname == 'LOAD_ATTR':
-                            f[current]['labels'].append(s.argval)
-                        elif s.opname == 'LOAD_CONST':
-                            if not current:
-                                current = 'left'
-                            else:
-                                current = 'right'
-                            f[current] = {'type': 'string', 'value': s.argval, 'labels': []}
-                    stack = []
-                    plan.filters.append(f) #pylint: disable-msg=no-member
-                else:
-                    stack.append(instr)
-            plans.append(plan)
+            plans.append(Decompiler(g, plan).decompile())
 
         return plans
     

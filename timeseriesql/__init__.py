@@ -3,7 +3,8 @@
 # Packages may add whatever they like to this file, but
 # should keep this content at the top.
 # ----------------------------------------------------------------------------
-from ._astropy_init import *   # noqa
+from ._astropy_init import *  # noqa
+
 # ----------------------------------------------------------------------------
 
 # Enforce Python version check during package import.
@@ -13,16 +14,15 @@ from distutils.version import LooseVersion
 
 __minimum_python_version__ = "3.7"
 
-__all__ = ['query','timeseries','ao_backend']
-
 
 class UnsupportedPythonError(Exception):
     pass
 
 
 if LooseVersion(sys.version) < LooseVersion(__minimum_python_version__):
-    raise UnsupportedPythonError("timeseriesql does not support Python < {}"
-                                 .format(__minimum_python_version__))
+    raise UnsupportedPythonError(
+        "timeseriesql does not support Python < {}".format(__minimum_python_version__)
+    )
 
 """
 if not _ASTROPY_SETUP_:   # noqa

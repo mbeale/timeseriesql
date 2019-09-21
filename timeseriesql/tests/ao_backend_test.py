@@ -2,10 +2,13 @@ import unittest
 import time
 from timeseriesql.ao_backend import AOBackend, create_scalar_time_series
 from timeseriesql.query import Plan
+from timeseriesql.decompiler import Variable, FilterVariable, Constant
+
 
 class TestAOBackend(unittest.TestCase):
 
     def setUp(self):
+        self.maxDiff = None
         now = int(time.time())
         self.basic_period = {
             "start_time": now - 3600,
@@ -19,7 +22,7 @@ class TestAOBackend(unittest.TestCase):
                 "calc": None,
                 "filters": [],
                 "group": None,
-                "variables": [{'name': 'x', 'labels': []}]
+                "variables": [Variable('x', labels=[])]
         }
 
         self.assertEqual(AOBackend().create_query(Plan(**expected_plan), self.basic_period), 's("test","*",{period:"1","function":"mean"})')
@@ -30,7 +33,7 @@ class TestAOBackend(unittest.TestCase):
                 "calc": None,
                 "filters": [],
                 "group": None,
-                "variables": [{'name': 'x', 'labels': ['max']}]
+                "variables": [Variable('x', labels=['max'])]
         }
         self.assertEqual(AOBackend().create_query(Plan(**expected_plan), self.basic_period), 's("test","*",{period:"1","function":"max"})')
 
@@ -38,9 +41,9 @@ class TestAOBackend(unittest.TestCase):
         expected_plan = {
                 "metrics": ["test"],
                 "calc": None,
-                "filters": [{'left': {'type': 'var', 'value': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod', 'labels':[]}}],
+                "filters": [{'left': FilterVariable(Variable('x', labels=['label1'])), 'op': '==', 'right': FilterVariable(Constant('prod'))}],
                 "group": None,
-                "variables": [{'name': 'x', 'labels': []}]
+                "variables": [Variable('x', labels= [])]
         }
         self.assertEqual(AOBackend().create_query(Plan(**expected_plan), self.basic_period), 's("test",{"label1":"prod"},{period:"1","function":"mean"})')
 
@@ -48,20 +51,19 @@ class TestAOBackend(unittest.TestCase):
         expected_plan = {
                 "metrics": ["test"],
                 "calc": [['x', 100, 'BINARY_MULTIPLY']],
-                "filters": [{'left': {'type': 'var', 'value': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod', 'labels':[]}}],
+                "filters": [{'left': FilterVariable(Variable('x', labels=['label1'])), 'op': '==', 'right': FilterVariable(Constant('prod'))}],
                 "group": None,
-                "variables": [{'name': 'x', 'labels': []}]
+                "variables": [Variable('x', labels= [])]
         }
         self.assertEqual(AOBackend().create_query(Plan(**expected_plan), self.basic_period), 'multiply([s("test",{"label1":"prod"},{period:"1","function":"mean"}),scale(divide([s("test",{"label1":"prod"},{period:"1","function":"mean"}),s("test",{"label1":"prod"},{period:"1","function":"mean"})]),{\"factor\":"100"})])')
 
     def test_group_by(self):
-        self.maxDiff = None
         expected_plan = {
                 "metrics": ["test"],
                 "calc": [['x', 100, 'BINARY_MULTIPLY']],
-                "filters": [{'left': {'type': 'var', 'value': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod', 'labels':[]}}],
+                "filters": [{'left': FilterVariable(Variable('x', labels=['label1'])), 'op': '==', 'right': FilterVariable(Constant('prod'))}],
                 "group": [['label1'], 'mean'],
-                "variables": [{'name': 'x', 'labels': []}]
+                "variables": [Variable('x', labels= [])]
         }
         expected_value = 'group_by("label1",multiply([mean(s("test",{"label1":"prod"},{period:"1","function":"mean"})),scale(divide([mean(s("test",{"label1":"prod"},{period:"1","function":"mean"})),mean(s("test",{"label1":"prod"},{period:"1","function":"mean"}))]),{"factor":"100"})]))'
 
@@ -71,9 +73,9 @@ class TestAOBackend(unittest.TestCase):
         expected_plan = {
                 "metrics": ["test"],
                 "calc": [['x', 100, 'BINARY_MULTIPLY'], ['x', 'BINARY_MULTIPLY']],
-                "filters": [{'left': {'type': 'var', 'value': 'x', 'labels': ['label1']}, 'op': '==', 'right': {'type': 'string', 'value': 'prod', 'labels':[]}}],
+                "filters": [{'left': FilterVariable(Variable('x', labels=['label1'])), 'op': '==', 'right': FilterVariable(Constant('prod'))}],
                 "group": None,
-                "variables": [{'name': 'x', 'labels': []}]
+                "variables": [Variable('x', labels= [])]
         }
         expected_value = 'multiply([multiply([s("test",{"label1":"prod"},{period:"1","function":"mean"}),scale(divide([s("test",{"label1":"prod"},{period:"1","function":"mean"}),s("test",{"label1":"prod"},{period:"1","function":"mean"})]),{"factor":"100"})]),s("test",{"label1":"prod"},{period:"1","function":"mean"})])'
 
@@ -96,19 +98,19 @@ class TestAOBackend(unittest.TestCase):
                         "metrics": ["metric1"],
                         "filters": [],
                         "group": [['tag1'], 'mean'],
-                        "variables": [{'name': 'x', 'labels': ['max']}]
+                        "variables": [Variable('x', labels= ['max'])]
                     }),Plan(**{
                         "calc": None,
                         "metrics": ["metric2"],
                         "filters": [],
-                        "group": [['tag1'],'mean'],
-                        "variables": [{'name': 'x', 'labels': ['min']}]
+                        "group": [['tag1'], 'mean'],
+                        "variables": [Variable('x', labels=['min'])]
                     })
                 ],
                 "calc": [['x', 'y', 'BINARY_SUBTRACT']],
                 "filters": [],
                 "group": None,
-                "variables": [{'name': 'x', 'labels': []}, {'name': 'y', 'labels': []}]
+                "variables": [Variable('x', labels= []), Variable('y', labels= [])]
         }
         expected_value = 'subtract([group_by("tag1",mean(s("metric1","*",{period:"1","function":"max"}))),group_by("tag1",mean(s("metric2","*",{period:"1","function":"min"})))])'
         self.assertEqual(AOBackend().create_query(Plan(**expected_plan), self.basic_period), expected_value)
