@@ -1,4 +1,5 @@
 import numpy as np
+from .time import TimeIndex
 
 class TimeSeries(np.ndarray):
     """ 
@@ -136,7 +137,7 @@ class TimeSeries(np.ndarray):
     @property
     def time(self):
         """Return only the TimeSeries index"""
-        return self[:, 0].view(np.ndarray)
+        return TimeIndex(self[:, 0].view(np.ndarray))
 
     def _get_group_masks(self, group):
         """Return a mask for each label"""

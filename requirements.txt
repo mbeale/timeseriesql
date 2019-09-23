@@ -1,7 +1,4 @@
 numpy
 requests
 matplotlib
-astropy-helpers
 sphinx
-gitpython
-sphinx-astropy
