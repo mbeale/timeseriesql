@@ -140,6 +140,8 @@ class TestTimeSeries(unittest.TestCase):
 
     def test_group_reduce(self):
         t1, t2, t3 = self.basic_timeseries
+        t2 *= 3
+        t3 *= 5
 
         # one label
         new_t = t1.merge([t2, t3, t2, t2, t3])
@@ -155,7 +157,11 @@ class TestTimeSeries(unittest.TestCase):
         self.assertTrue(np.array_equal(reduced[:, [0, 2]], new_t[:, [0, 2]]))
         self.assertTrue(np.array_equal(reduced[:, [0, 4]], host2))
 
-        # non reduce ufunc (mean)
+
+        #reduced_collect = new_t.group_collect(["hostname", "name"]).add()
+        #self.assertTrue(np.array_equal(reduced, reduced_collect))
+
+    def test_group_reduce_non_ufunc(self):
         avg_1, avg_2, avg_3 = self.basic_timeseries
         avg_2 *= 3
         avg_3 *= 5
@@ -271,7 +277,7 @@ class TestTimeSeries(unittest.TestCase):
         rolling_cum_sum = new_t.rolling_window(3, np.add.reduce)
         cum_sum_answer = np.array([0.0, 0.0, 3, 6, 9, 12, 15, 18, 21, 24])
         self.assertTrue(np.array_equal(rolling_cum_sum[2:,1], cum_sum_answer[2:]))
-        
+     
     def test_resample(self):
         avg_1, avg_2, avg_3 = self.basic_timeseries
         avg_2 *= 3
@@ -288,4 +294,36 @@ class TestTimeSeries(unittest.TestCase):
         #0,3,6,9,12 - 15,18,21,24,27
         #0,5,10,15,20 - 25,30,35,40,45
         self.assertTrue(np.array_equal(resampled[:,1:], answer))
+
+    def test_label_reduction(self):
+        t1, t2, t3 = self.basic_timeseries
+        new_t = t1.merge([t2, t3])
+
+        r = new_t.group('env')
+        self.assertEqual(r.labels, [{'env': 'prod', 'name': 'metric1'}])
+
+        new_t.labels[1]['name'] = 'metric2'
+        r = new_t.group('env')
+        self.assertEqual(r.labels, [{'env': 'prod'}])
+
+    def test_label_reduction_2_groups(self):
+        t1, t2, t3 = self.basic_timeseries
+        new_t = t1.merge([t2, t3])
+        new_t.labels[1]['name'] = 'metric2'
+        r = new_t.group('name')
+        self.assertEqual(r.labels, [{'name': 'metric1', 'env': 'prod'}, {'env': 'prod', 'hostname':'host2','name': 'metric2'}])
+
+    def test_merge_labels_ufunc(self):
+        t1, t2, t3 = self.basic_timeseries
+        new_t = t1.merge([t2, t3])
+
+        a = np.add.reduce(new_t, axis=1)
+        self.assertEqual(a.labels, [{'env': 'prod','name': 'metric1'}])
+        new_t.labels[1]['name'] = 'metric2'
+        a = np.add.reduce(new_t, axis=1)
+        self.assertEqual(a.labels, [{'env': 'prod'}])
+
+
+
+
        

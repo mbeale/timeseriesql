@@ -1,5 +1,7 @@
 import numpy as np
+from itertools import compress
 from .time import TimeIndex
+from .time_chunk import TimeChunk
 
 class TimeSeries(np.ndarray):
     """ 
@@ -11,17 +13,49 @@ class TimeSeries(np.ndarray):
     filtering/grouping by label(s) is also added.
     """
 
+    chunks = None
+
     def __new__(self, shape, labels=None):
         """Creates a new array based on the shape"""
         obj = np.empty(shape, dtype=np.float64).view(self)
         obj[:] = np.nan
         if isinstance(labels, list):
             obj.labels = [l for l in labels]
-        else:
+        elif labels:
             obj.labels = [labels]
+        else:
+            obj.labels = []
         return obj
 
+
+    """
+    def __getattr__(self, attr_name):
+        def method(*args, **kwargs):
+            if attr_name in dir(np) and callable(getattr(np, attr_name)) and isinstance(getattr(np, attr_name), np.ufunc):
+                if self.chunks:
+                    rtn_time_series = None
+                    for chunk in self.chunks:
+                        if 'axis' not in kwargs:
+                            kwargs['axis'] = chunk.axis
+                        data = getattr(np, attr_name).reduce(self[chunk.row_mask, chunk.col_mask], *args, **kwargs).get_data
+                        new_ts = TimeSeries((data.shape[0], data.shape[1]+1))
+                        new_ts[:,0] = self[chunk.row_mask].time
+                        new_ts[:,1:] = data
+                        if rtn_time_series is None:
+                            rtn_time_series = new_ts
+                        else:
+                            rtn_time_series = rtn_time_series.merge([new_ts])
+                    self.chunks = None
+                    return rtn_time_series
+                else:        
+                    return getattr(np, attr_name).reduce(self, *args, **kwargs)
+            else:
+                raise AttributeError
+        return method
+    """
+
     def __str__(self):
+        """ String override which gives a larger amount of details """
         labels = ""
         for i,l in enumerate(self.labels):
             if i > 4:
@@ -34,8 +68,8 @@ class TimeSeries(np.ndarray):
             labels = None
         time_range = ""
         if self.time[0] > 0:
-            time_range = f"Time Range\n===========\n{np.datetime64(int(self.time[0]), 's')} ... {np.datetime64(int(self.time[-1]), 's')}\n\n"
-        return f"\nLabels:\n===========\n{labels}\n{time_range}Data:\n============\n{super(TimeSeries, self).__str__()}"
+            time_range = f"Time Range\n===========\n{self.time.dt[0]} ... {self.time.dt[-1]}\n\n"
+        return f"\nLabels:\n===========\n{labels}\n{time_range}Data:\n============\n{super().__str__()}"
 
     def __array_finalize__(self, obj):
         """Used to add labels to the object"""
@@ -47,7 +81,7 @@ class TimeSeries(np.ndarray):
         """Add functionality for filtering on labels and datetime objects"""
         # if a label filter, return view for the correct streams
         try:
-            return super(TimeSeries, self).__getitem__(items)
+            return super().__getitem__(items)
         except IndexError as e:
             time_slice = items
             extra_slices = None
@@ -58,10 +92,9 @@ class TimeSeries(np.ndarray):
                 if (start, stop) == (None, None):
                     raise e
                 if extra_slices:
-                    return super(TimeSeries, self).__getitem__((start, extra_slices))
+                    return super().__getitem__((start, extra_slices))
                 else:
-                    return super(TimeSeries, self).__getitem__(start)
-                #return super(TimeSeries, self).__getitem__(start)
+                    return super().__getitem__(start)
             if isinstance(items, int):
                 raise e
             l = len(items)
@@ -71,7 +104,7 @@ class TimeSeries(np.ndarray):
                 filters = [0] + self.argfilter(items)
                 if len(filters) == 1:
                     return None  # maybe should return something else?
-                return super(TimeSeries, self).__getitem__((slice(None), filters))
+                return super().__getitem__((slice(None), filters))
         except TypeError as e:
             # build new slice
             time_slice = items
@@ -83,9 +116,9 @@ class TimeSeries(np.ndarray):
                 if (start, stop) == (None, None):
                     raise e
                 if extra_slices:
-                    return super(TimeSeries, self).__getitem__((slice(start, stop), extra_slices))
+                    return super().__getitem__((slice(start, stop), extra_slices))
                 else:
-                    return super(TimeSeries, self).__getitem__(slice(start, stop))
+                    return super().__getitem__(slice(start, stop))
             raise e
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
@@ -99,7 +132,7 @@ class TimeSeries(np.ndarray):
             if isinstance(input, TimeSeries):
                 args.append(input.get_data)
                 # args.append(np.array(input.get_data))
-                labels.append(input.labels)
+                labels = input.labels
             else:
                 args.append(input)
         # clean outputs
@@ -113,7 +146,7 @@ class TimeSeries(np.ndarray):
             kwargs["out"] = tuple(new_out)
 
         # then just call the parent
-        results = super(TimeSeries, self).__array_ufunc__(ufunc, method, *args, **kwargs)
+        results = super().__array_ufunc__(ufunc, method, *args, **kwargs)
         if results is NotImplemented:
             return NotImplemented
         if not isinstance(results, np.ndarray):
@@ -125,7 +158,9 @@ class TimeSeries(np.ndarray):
             columns = results.shape[1] + 1
 
         # create an empty time series
-        t = TimeSeries((len(self), columns), labels=labels[0])  # should merge the labels
+        if columns != self.shape[1]: #not same column length
+            labels = self._least_common_labels(labels.copy())
+        t = TimeSeries((len(self), columns), labels=labels)
         t[:] = np.hstack([self[:, 0].reshape(len(self), 1), results])
         return t
 
@@ -144,7 +179,7 @@ class TimeSeries(np.ndarray):
         if not isinstance(group, list):
             group = [group]
         groupings = {}
-        for i, stream in enumerate(self.labels):
+        for i, stream in enumerate(self.labels.copy()):
             key = ""
             for g in group:
                 if g in stream:
@@ -159,7 +194,7 @@ class TimeSeries(np.ndarray):
         """Return the indicies for a TimeSeries object searching by a datetime object"""
         start, stop = (start_date, stop_date)
         if isinstance(start_date, np.timedelta64):
-            start_date = np.datetime64(int(self.time[0]), "s") + start_date
+            start_date = self.time.dt[0] + start_date
         if isinstance(start_date, np.datetime64):
             start = np.argwhere(self.time >= start_date.astype(float))
             if len(start) > 0:
@@ -170,7 +205,7 @@ class TimeSeries(np.ndarray):
             if start_date:
                 stop_date = start_date + stop_date
             else:
-                stop_date = np.datetime64(int(self.time[-1]), "s") - stop_date
+                stop_date = self.time.dt[-1] - stop_date
         if isinstance(stop_date, np.datetime64):
             stop = np.argwhere(self.time >= stop_date.astype(float))
             if len(stop) > 0:
@@ -196,6 +231,18 @@ class TimeSeries(np.ndarray):
                 if k not in l or l[k] != labels[k]:
                     del labels[k]
         return labels
+
+    def _least_common_labels(self, labels):
+        common_labels = []
+        if labels:
+            common_labels = labels[0].copy()
+            if len(labels) > 1:
+                for l in labels[1:].copy():
+                    for k in common_labels.copy().keys():
+                        if k not in l or l[k] != common_labels[k]:
+                            del common_labels[k]
+        return common_labels
+
 
     def _generate_title(self):
         """Generate a title based on common tags"""
@@ -241,10 +288,15 @@ class TimeSeries(np.ndarray):
             [1.56571830e+09, 5.83333333e-01, 2.04479746e+01, ...,
              8.54166667e-01, 7.78839232e+00, 3.19808880e+00]])
         """
-        copy = super(TimeSeries, self).copy()
-        ts = TimeSeries(copy.shape, labels=self.labels)
+        copy = super().copy()
+        ts = TimeSeries(copy.shape, labels=self.labels.copy())
         ts[:] = copy[:]
         return ts
+
+    def group_collect(self, group):
+        masks = self._get_group_masks(group)
+        self.chunks = (TimeChunk(slice(None, None, None), mask, axis=1) for mask in masks)
+        return self
 
     def group(self, group, ufunc=np.add):
         """Merge multiple timeseries into one TimeSeries object
@@ -289,6 +341,20 @@ class TimeSeries(np.ndarray):
                     new_t[:, [i + 1]] = data.reshape(len(new_t), 1)
                 else:
                     new_t = data
+            if isinstance(new_t, TimeSeries):
+                #create true false mask - probably a better way to do this
+                label_mask = []
+                next_i = 0
+                for m in (x - 1 for x in mask[1:]):
+                    if next_i == m:
+                        label_mask.append(1)
+                        next_i += 1
+                    else:
+                        for i in range(next_i,m):
+                            label_mask.append(0)
+                        label_mask.append(1)
+                        next_i = m + 1
+                new_t.labels.append(self._least_common_labels(list(compress(self.labels.copy(), label_mask))))
         return new_t
 
     def merge(self, tseries):
@@ -338,7 +404,7 @@ class TimeSeries(np.ndarray):
             columns += t.shape[1] - 1
 
         # create new series
-        new_t = TimeSeries((len(timeindex), columns), labels=self.labels)
+        new_t = TimeSeries((len(timeindex), columns), labels=self.labels.copy())
 
         # load data from self
         new_t[:, 0] = timeindex
@@ -387,8 +453,8 @@ class TimeSeries(np.ndarray):
             DateFormatter,
         )
 
-        date_index = [np.datetime64(int(x), "s") for x in np.nditer(self.time)]
-        if not ax:
+        date_index = self.time.dt
+        if ax is None:
             fig = plt.figure(1)
             fig.autofmt_xdate()
             ax = fig.add_subplot(111)
@@ -463,7 +529,7 @@ class TimeSeries(np.ndarray):
         >>> [1,4,6]
         """
         stream_indexes = []
-        for i, l in enumerate(self.labels):
+        for i, l in enumerate(self.labels.copy()):
             for k, v in clauses.items():
                 if not isinstance(v, list):
                     v = [v]
@@ -503,8 +569,8 @@ class TimeSeries(np.ndarray):
         """
         return self[[self.argfilter(clauses)]]
 
-    def rolling_window(self, size, func, stepsize=1):
-        new = TimeSeries(self.shape, labels=self.labels)
+    def rolling_window(self, size, func=None, stepsize=1):
+        new = TimeSeries(self.shape, labels=self.labels.copy())
         new[:,0] = self.time
         for i in range(0, len(self)-size+1, stepsize):
             if isinstance(func, np.ufunc):
@@ -515,13 +581,13 @@ class TimeSeries(np.ndarray):
 
     def to_pandas(self):
         """ Return two pandas objects.  One for the label data and one for the measurements"""
+
         import pandas as pd
 
         columns = ["time_index"] + ["stream_" + str(x) for x in range(len(self.labels))]
-        data = pd.DataFrame(data=self, columns=columns)
+        data = pd.DataFrame(data=self.view(type=np.ndarray), columns=columns)
         data["time_index"] = pd.to_datetime(data["time_index"], unit="s")
         data.set_index("time_index")
-
         label_columns = list(set(key for dic in self.labels for key in dic.keys()))
         label_data = [[row.get(key, None) for row in self.labels] for key in label_columns]
         labels = pd.DataFrame(columns=label_columns)
@@ -531,7 +597,7 @@ class TimeSeries(np.ndarray):
 
     def resample(self, period_in_sec, func=lambda x: np.mean(x, axis=0)):
         time_index = [t for t in range(int(self.time[0]), int(self.time[-1]), period_in_sec)]
-        new_t = TimeSeries((len(time_index), self.shape[1]), labels=self.labels)
+        new_t = TimeSeries((len(time_index), self.shape[1]), labels=self.labels.copy())
         new_t[:,0] = time_index
         for t in time_index:
             beg = np.datetime64(
@@ -539,5 +605,4 @@ class TimeSeries(np.ndarray):
             )
             data = func(self[beg : np.timedelta64(period_in_sec, "s")].get_data)
             new_t[beg:beg+1,1:] = data
-        print(new_t)
         return new_t
