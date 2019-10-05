@@ -5,13 +5,16 @@ import time
 from .timeseries import TimeSeries
 from .decompiler import Decompiler
 
+
 class Plan:
     """A basic class that holds the Plan execution details"""
-    __slots__ = ['calc', 'group', 'metrics', 'filters', 'variables']
+
+    __slots__ = ["calc", "group", "metrics", "filters", "variables"]
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
+
 
 class Query:
     """
@@ -19,10 +22,9 @@ class Query:
     easily extended by overriding the `execute_plan` plan method.
     """
 
-    DEFAULT_START_OFFSET = int(os.environ.get('DEFAULT_START_OFFSET', '3600'))
-    DEFAULT_RESOLUTION = int(os.environ.get('DEFAULT_RESOLUTION', '60'))
+    DEFAULT_START_OFFSET = int(os.environ.get("DEFAULT_START_OFFSET", "3600"))
+    DEFAULT_RESOLUTION = int(os.environ.get("DEFAULT_RESOLUTION", "60"))
 
-    
     def __init__(self, *args):
         """Override __init__"""
         self.groupings = None
@@ -30,7 +32,7 @@ class Query:
         self.filters = []
         self.data = None
         self.generators = [a for a in args]
-        
+
     def __iter__(self):
         """Make Query object an iterable"""
         return self
@@ -67,13 +69,14 @@ class Query:
 
         """
         period = self._process_period()
-        #should return time series
+        # should return time series
         # return empty timeseries based on the period
-        timeindex = [x for x in range(period['start_time'], period['end_time'], period['resolution'])]
-        t1 = TimeSeries((len(timeindex),2))
-        t1[:] = [[i,np.nan] for i in timeindex]
+        timeindex = [
+            x for x in range(period["start_time"], period["end_time"], period["resolution"])
+        ]
+        t1 = TimeSeries(shape=(len(timeindex), 1), time=timeindex)
+        # t1[:] = [[i,np.nan] for i in timeindex]
         return t1
-    
 
     def _process_period(self):
         """ This processes the period from the __getitem__() function
@@ -95,14 +98,20 @@ class Query:
         if isinstance(self.period, int):
             start_offset = self.period
         else:
-            start_offset = self.period.start if self.period and self.period.start else self.DEFAULT_START_OFFSET
+            start_offset = (
+                self.period.start
+                if self.period and self.period.start
+                else self.DEFAULT_START_OFFSET
+            )
             end_offset = self.period.stop if self.period and self.period.stop else 0
-            resolution = self.period.step if self.period and self.period.step else self.DEFAULT_RESOLUTION
-            
+            resolution = (
+                self.period.step if self.period and self.period.step else self.DEFAULT_RESOLUTION
+            )
+
         period = {
             "start_time": now - start_offset,
             "end_time": now - end_offset,
-            "resolution": resolution
+            "resolution": resolution,
         }
         return period
 
@@ -136,18 +145,20 @@ class Query:
         """
         plans = []
         for g in self.generators:
-            plan = Plan(**{
-                'calc': None,
-                'group': self.groupings,
-                'metrics': [],
-                'filters': self.filters,
-                'variables': []
-            })
+            plan = Plan(
+                **{
+                    "calc": None,
+                    "group": self.groupings,
+                    "metrics": [],
+                    "filters": self.filters,
+                    "variables": [],
+                }
+            )
             plans.append(Decompiler(g, plan).decompile())
 
         return plans
-    
-    def by(self, labels, func='mean'):
+
+    def by(self, labels, func="mean"):
         """Adds a group by step to the Query plan
         
         Params:
