@@ -1,6 +1,4 @@
-import dis
 import os
-import numpy as np
 import time
 from .timeseries import TimeSeries
 from .decompiler import Decompiler
@@ -82,6 +80,7 @@ class Query:
         """ This processes the period from the __getitem__() function
 
         Slice Examples:
+        --------------
 
         [3600] start_time = now - 3600 seconds, end_time=now
         [3600:1800] start_time = now - 3600 seconds, end_time = now - 1800 seconds

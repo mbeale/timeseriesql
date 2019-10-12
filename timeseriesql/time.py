@@ -18,11 +18,13 @@ class TimeIndex(np.ndarray):
         return obj
 
     def __array_finalize__(self, obj):
+        """ Finalize the array """
         if obj is None:
             return
 
     @property
     def dt(self):
+        """ creates a datetime object for the time index """
         if not self._dt:
             self._dt = np.array(
                 [np.datetime64(int(t), "s") for t in np.nditer(self)], dtype=np.datetime64

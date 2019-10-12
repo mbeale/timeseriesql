@@ -1,8 +1,8 @@
 import os
 import requests
 import numbers
-from .query import Query, Plan
-from .timeseries import TimeSeries
+from timeseriesql.query import Query, Plan
+from timeseriesql.timeseries import TimeSeries
 
 
 def create_scalar_time_series(series, scalar):
@@ -48,7 +48,7 @@ def binary_operation(left, right, optype):
         else:
             return CompositeDefinition(f"{opcode}([{left},{right}])")
     else:
-        raise TypeError("{optype} is not a supported operation")
+        raise TypeError(f"{optype} is not a supported operation")
 
 
 class CompositeDefinition(str):

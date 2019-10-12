@@ -4,6 +4,7 @@ import copy
 import time
 import math
 from timeseriesql.timeseries import TimeSeries
+import matplotlib.pyplot as plt
 
 
 class TestTimeSeries(unittest.TestCase):
@@ -173,6 +174,12 @@ class TestTimeSeries(unittest.TestCase):
         new_t = t1.merge(values[1:])
         for i, t in enumerate(values):
             self.assertTrue(np.array_equal(new_t[:, [i]], t))
+        t1, t2, t3 = self.basic_timeseries
+        new_t = t1.merge(t2)
+        self.assertTrue(np.array_equal(t2[:], new_t[:,1]))
+
+        self.assertRaises(NotImplementedError, t2.merge, [0,1,2,3,4])
+
 
     def test_group_reduce(self):
         t1, t2, t3 = self.basic_timeseries
@@ -219,6 +226,9 @@ class TestTimeSeries(unittest.TestCase):
         )
         self.assertTrue(
             np.array_equal(new_t[{"hostname": "does_not_exist"}], TimeSeries(shape=(0, 3)).data)
+        )
+        self.assertTrue(
+            np.array_equal(new_t.filter({"hostname": "does_not_exist"}), TimeSeries(shape=(0, 3)).data)
         )
 
     def test_index_by_datetime(self):
@@ -374,3 +384,34 @@ class TestTimeSeries(unittest.TestCase):
         self.assertTrue(np.array_equal(ts.data, mul_result))
         t3 *= 3
         self.assertTrue(np.array_equal(t3.data, mul_result))
+
+    def test_ufunc_attached(self):
+        t1, t2, t3 = self.basic_timeseries
+        t1 *= -1
+        new_t = t1.fabs()
+        self.assertTrue(np.array_equal(t2.data, new_t.data))
+
+    def test_invalid_attribute(self):
+        t1, t2, t3 = self.basic_timeseries
+        self.assertRaises(AttributeError, t1.invalid_name_xxx)
+
+    def test_invalid_index(self):
+        t1, t2, t3 = self.basic_timeseries
+
+        # out of bounds index
+        self.assertRaises(IndexError, t1.__getitem__, 2300)
+
+        # out of bounds date index
+        out_of_bounds_date = np.datetime64(int(t1.time[-1] + 86400), "s")
+        self.assertRaises(IndexError, t1.__getitem__, out_of_bounds_date)
+
+        # out of bounds stop date index
+        out_of_bounds_date = np.datetime64(int(t1.time[0] - 86400), "s")
+        new_t = t1[out_of_bounds_date:np.timedelta64(3, "m")]
+        self.assertEqual(len(new_t), 0)
+
+    def test_matplotlib(self):
+        t1, t2, t3 = self.basic_timeseries
+
+        t1.plot(legend=True)
+        self.assertEqual(1, len(plt.get_fignums()))

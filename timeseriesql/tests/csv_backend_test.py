@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import os
-from timeseriesql.csv_backend import CSVBackend
+from timeseriesql.backends.csv_backend import CSVBackend
 from timeseriesql.timeseries import TimeSeries
 
 

@@ -1,8 +1,8 @@
 import numpy as np
 import csv
 from itertools import compress
-from .query import Query
-from .timeseries import TimeSeries
+from timeseriesql.query import Query
+from timeseriesql.timeseries import TimeSeries
 
 
 def convert_to_float(s):
@@ -60,7 +60,6 @@ class CSVBackend(Query):
         return mask
 
     def execute_plan(self):
-        params = self._process_period()
         plan = self._generate_plan()[0]
         labels = []
         data = []

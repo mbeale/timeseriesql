@@ -1,8 +1,8 @@
 import dis
-import sys
 
 
 class Variable:
+    """ A generic Variable class to be used with decompiler"""
     def __init__(self, name, labels=[]):
         self.name = name
         self.labels = labels
@@ -12,6 +12,7 @@ class Variable:
 
 
 class StackVariable:
+    """ A class for a variable on the stack to be used with decompiler """
     def __init__(self, name, value):
         self.name = name
         self.value = value
@@ -21,6 +22,7 @@ class StackVariable:
 
 
 class Constant:
+    """ A class to define a variable as a constant term to be used with decompiler"""
     def __init__(self, value):
         self.value = value
 
@@ -29,6 +31,7 @@ class Constant:
 
 
 class FilterVariable:
+    """ A variable class for filters to be used with decompiler """
     def __init__(self, base):
         if isinstance(base, (Constant, StackVariable)):
             self.type = "string"
@@ -43,10 +46,29 @@ class FilterVariable:
 
 
 class Decompiler:
+    """
+    This class translates python bytecode to a format the Query class can use.
+
+    Note
+    =========
+    Typically this class is not used directly by backends.
+    
+    """
     def __init__(self, gen, plan, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        gen  : Generator
+            The generator to be decompiled
+        plan : Plan
+            Initial execution plan information
+        """
         self.plan = plan
         self.gen = gen
+
+        #: list of StackVariable: The initial stack is empty
         self.stack = []
+        #: dict of function: Dictionary for supported opcodes
         self.opcodes = {
             "FOR_ITER": self.for_iter,
             "LOAD_FAST": self.load_fast,
@@ -79,6 +101,7 @@ class Decompiler:
         }
 
     def decompile(self):
+        """ Start handleling the generator bytecode"""
         bytecode = dis.Bytecode(self.gen)
         for instr in bytecode:
             op = self.opcodes.get(instr.opname, None)
@@ -89,6 +112,7 @@ class Decompiler:
         return self.plan
 
     def for_iter(self, instr):
+        """ Handle FOR_ITER instruction """
         stack_val = self.stack.pop()
         from .query import Query
 
@@ -100,6 +124,7 @@ class Decompiler:
             raise TypeError(f"Unexpected type of iterable ({type(stack_val.value)}")
 
     def load_fast(self, instr):
+        """ Handle LOAD_FAST instruction """
         if instr.argval.startswith("."):
             self.stack.append(StackVariable(instr.argval, self.gen.gi_frame.f_locals[instr.argval]))
         else:
@@ -116,21 +141,25 @@ class Decompiler:
         pass
 
     def store_fast(self, instr):
+        """ Handle STORE_FAST instruction """
         self.plan.variables.append(Variable(instr.argval, labels=[]))
 
     def yield_value(self, instr):
         pass
 
     def load_attr(self, instr):
+        """ Handle LOAD_ATTR instruction """
         stack_val = self.stack.pop()
         stack_val.labels.append(instr.argval)
         self.stack.append(stack_val)
 
     def load_const(self, instr):
+        """ Handle LOAD_CONST instruction """
         self.stack.append(Constant(instr.argval))
         pass
 
     def compare_op(self, instr):
+        """ Handle COMPARE_OP instruction """
         r = self.stack.pop()
         l = self.stack.pop()
         right = FilterVariable(r)
@@ -143,11 +172,13 @@ class Decompiler:
         self.plan.filters.append({"right": right, "left": left, "op": instr.argval})
 
     def load_global(self, instr):
+        """ Handle LOAD_GLOBAL instruction """
         self.stack.append(
             StackVariable(instr.argval, self.gen.gi_frame.f_globals.get(instr.argval, "unknown"))
         )
 
     def load_deref(self, instr):
+        """ Handle LOAD_DEREF instruction """
         self.stack.append(
             StackVariable(instr.argval, self.gen.gi_frame.f_locals.get(instr.argval, "unknown"))
         )
@@ -162,6 +193,7 @@ class Decompiler:
         pass
 
     def binary_ops(self, instr):
+        """ Handle binary operation instructions """
         binary_op = []
         right = self.stack.pop()
         if len(self.stack) > 0:
@@ -175,6 +207,7 @@ class Decompiler:
             self.plan.calc = [binary_op]
 
     def binary_subscr(self, instr):
+        """ Handle BINARY_SUBSCR instruction """
         index = self.stack.pop()
         target = self.stack.pop()
 

@@ -2,6 +2,26 @@ import numpy as np
 
 
 class TimeSeriesCollection:
+    """ A grouping of rows and columns for a TimeSeries 
+    
+    Attributes
+    ----------
+
+    data : np.array
+        The place holder for array to be returned
+    axis : int
+        The axis for the function to be applied on
+    collapse_index : bool
+        Should the rows be squashed into 1 row
+    collapse_time_index : int
+        Which row index should be used.  0 for first, -1 for last
+    chunks : [TimeChunk]
+        A list of chunks to iterate over
+    parent : TimeSeries
+        The parent of the collection
+    init_data : np.array
+        If there is any initial data to start with
+    """
 
     data = None
     axis = 0
@@ -12,6 +32,7 @@ class TimeSeriesCollection:
     init_data = None
 
     def __getattr__(self, attr_name):
+        """ Return a method for process each chunk """
         from .timeseries import TimeSeries
 
         def method(*args, **kwargs):

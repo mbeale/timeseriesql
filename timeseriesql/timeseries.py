@@ -1,5 +1,5 @@
 import numpy as np
-import collections
+from collections.abc import Sequence
 from .np_array import NumpyArray
 from .time import TimeIndex
 from itertools import compress
@@ -8,7 +8,30 @@ from .time_chunk import TimeChunk
 
 
 class TimeSeries:
+    """ The base object to work with time series 
+    
+    Attributes
+    ----------
+    data : NumpyArray
+        The data associated with the time series object
+    _time : np.array
+        Then shared time index for the time series
+    labels : [dict]
+        A list of key value pairs for the streams
+    """
     def __init__(self, *args, shape=(4, 3), labels=None, time=[], **kwargs):
+        """
+        Initialize the object
+
+        Parameters
+        ----------
+        shape : tuple
+            the shape to use to make the data array
+        labels : [dict]
+            a list of key value pairs for the streams
+        time : array like
+            a list of time indicies
+        """
         self.data = NumpyArray(shape, self)
         if isinstance(labels, list):
             self.labels = [l for l in labels]
@@ -24,136 +47,136 @@ class TimeSeries:
     def __add__(self, other):
         return self.data.__add__(other)
 
-    def __sub__(self, other):
+    def __sub__(self, other): # pragma: no cover
         return self.data.__sub__(other)
 
     def __mul__(self, other):
         return self.data.__mul__(other)
 
-    def __floordiv__(self, other):
+    def __floordiv__(self, other):# pragma: no cover
         return self.data.__floordiv__(other)
 
-    def __mod__(self, other):
+    def __mod__(self, other):# pragma: no cover
         return self.data.__mod__(other)
 
-    def __pow__(self, other):
+    def __pow__(self, other):# pragma: no cover
         return self.data.__pow__(other)
 
-    def __lshift__(self, other):
+    def __lshift__(self, other):# pragma: no cover
         return self.data.__lshift__(other)
 
-    def __rshift__(self, other):
+    def __rshift__(self, other):# pragma: no cover
         return self.data.__rshift__(other)
 
-    def __and__(self, other):
+    def __and__(self, other):# pragma: no cover
         return self.data.__and__(other)
 
-    def __xor__(self, other):
+    def __xor__(self, other):# pragma: no cover
         return self.data.__xor__(other)
 
-    def __or__(self, other):
+    def __or__(self, other):# pragma: no cover
         return self.data.__or__(other)
 
     def __iadd__(self, other):
         return self.data.__iadd__(other)
 
-    def __isub__(self, other):
+    def __isub__(self, other):# pragma: no cover
         return self.data.__isub__(other)
 
     def __imul__(self, other):
         return self.data.__imul__(other)
 
-    def __idiv__(self, other):
+    def __idiv__(self, other):# pragma: no cover
         return self.data.__idiv__(other)
 
-    def __ifloordiv__(self, other):
+    def __ifloordiv__(self, other):# pragma: no cover
         return self.data.__ifloordiv__(other)
 
-    def __imod__(self, other):
+    def __imod__(self, other):# pragma: no cover
         return self.data.__imod__(other)
 
-    def __ipow__(self, other):
+    def __ipow__(self, other):# pragma: no cover
         return self.data.__ipow__(other)
 
-    def __ilshift__(self, other):
+    def __ilshift__(self, other):# pragma: no cover
         return self.data.__ilshift__(other)
 
-    def __irshift__(self, other):
+    def __irshift__(self, other):# pragma: no cover
         return self.data.__irshift__(other)
 
-    def __iand__(self, other):
+    def __iand__(self, other):# pragma: no cover
         return self.data.__iand__(other)
 
-    def __ixor__(self, other):
+    def __ixor__(self, other):# pragma: no cover
         return self.data.__ixor__(other)
 
-    def __ior__(self, other):
+    def __ior__(self, other):# pragma: no cover
         return self.data.__ior__(other)
 
-    def __radd__(self, other):
+    def __radd__(self, other):# pragma: no cover
         return self.data.__radd__(other)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other):# pragma: no cover
         return self.data.__rsub__(other)
 
     def __rmul__(self, other):
         return self.data.__rmul__(other)
 
-    def __rdiv__(self, other):
+    def __rdiv__(self, other):# pragma: no cover
         return self.data.__rdiv__(other)
 
-    def __rfloordiv__(self, other):
+    def __rfloordiv__(self, other):# pragma: no cover
         return self.data.__rfloordiv__(other)
 
-    def __rmod__(self, other):
+    def __rmod__(self, other):# pragma: no cover
         return self.data.__rmod__(other)
 
-    def __rpow__(self, other):
+    def __rpow__(self, other):# pragma: no cover
         return self.data.__rpow__(other)
 
-    def __rlshift__(self, other):
+    def __rlshift__(self, other):# pragma: no cover
         return self.data.__rlshift__(other)
 
-    def __rrshift__(self, other):
+    def __rrshift__(self, other):# pragma: no cover
         return self.data.__rrshift__(other)
 
-    def __rand__(self, other):
+    def __rand__(self, other):# pragma: no cover
         return self.data.__rand__(other)
 
-    def __rxor__(self, other):
+    def __rxor__(self, other):# pragma: no cover
         return self.data.__rxor__(other)
 
-    def __ror__(self, other):
+    def __ror__(self, other):# pragma: no cover
         return self.data.__ror__(other)
 
-    def __lt__(self, other):
+    def __lt__(self, other):# pragma: no cover
         return self.data.__lt__(other)
 
-    def __le__(self, other):
+    def __le__(self, other):# pragma: no cover
         return self.data.__le__(other)
 
     def __eq__(self, other):
         return self.data.__eq__(other)
 
-    def __ne__(self, other):
+    def __ne__(self, other):# pragma: no cover
         return self.data.__ne__(other)
 
-    def __gt__(self, other):
+    def __gt__(self, other):# pragma: no cover
         return self.data.__gt__(other)
 
-    def __ge__(self, other):
+    def __ge__(self, other):# pragma: no cover
         return self.data.__ge__(other)
 
     def __len__(self):
         return self.data.__len__()
 
-    def __array__(self):
+    def __array__(self):# pragma: no cover
         return self.data
 
     def __array_wrap__(self, out_arr, context=None):
         return self.wrap_new_data(out_arr)
 
-    def __str__(self):
+    def __str__(self):# pragma: no cover
         """ String override which gives a larger amount of details """
         labels = ""
         for i, l in enumerate(self.labels):
@@ -171,6 +194,7 @@ class TimeSeries:
         return f"\nLabels:\n===========\n{labels}\n{time_range}Data:\n============\n{self.data.__str__()}"
 
     def __getattr__(self, attr_name):
+        """ Attach the data attributes to the top level """
         if attr_name in dir(self.data) and not callable(getattr(self.data, attr_name)):
             return getattr(self.data, attr_name)
 
@@ -200,6 +224,7 @@ class TimeSeries:
             return self.wrap_new_data(self.data.__getitem__(index), time=self.time[time_index])
 
     def __setitem__(self, key, item):
+        """ Set the item based off of a key in data """
         try:
             self.data.__setitem__(key, item)
         except IndexError as e:
@@ -249,7 +274,7 @@ class TimeSeries:
         raise error
 
     def _convert_time_index(self, index):
-        if not isinstance(index, collections.Sequence):
+        if not isinstance(index, Sequence):
             return index
         else:
             return index[0]
@@ -304,7 +329,7 @@ class TimeSeries:
         return (start, stop)
 
     def _least_common_labels(self, mask):
-        #create true false mask - probably a better way to do this
+        """ create true false mask - probably a better way to do this """
         label_mask = []
         next_i = 0
         if isinstance(mask, slice):
@@ -337,14 +362,6 @@ class TimeSeries:
             return ".".join([str(v) for k, v in labels.items()])
         return "TimeSeries"
 
-    def _generate_labels(self):
-        """Generate labels for legend creation"""
-        labels = []
-        exclude_labels = self._get_unique_keys()
-        for l in self.labels:
-            labels.append(".".join([str(v) for k, v in l.items() if k not in exclude_labels]))
-        return labels
-
     def _get_unique_keys(self):
         """Get list of unique keys"""
         labels = self.labels[0].copy()
@@ -360,6 +377,7 @@ class TimeSeries:
         return TimeIndex(self._time.view(np.ndarray))
 
     def wrap_new_data(self, out_arr, time=None):
+        """ Wrap a value returned from a ufunc in a TimeSeries object """
         if not isinstance(out_arr, np.ndarray) or not out_arr.shape:
             return out_arr
         if time is None:
@@ -393,6 +411,7 @@ class TimeSeries:
         return new_to
 
     def vstack(self, new_data):
+        """ Vertically stack data to a TimeSeries """
         data = NumpyArray(shape=(self.shape[0] + new_data.shape[0], new_data.shape[1]), parent=self)
         data[0:self.shape[0],:] = self.data
         data[self.shape[0]:,:] = new_data.data
@@ -525,6 +544,7 @@ class TimeSeries:
         return self[[self.argfilter(clauses)]]
 
     def group(self, group):
+        """ Create a collection based on a grouping """
         masks = self._get_group_masks(group)
         collection = TimeSeriesCollection()
         collection.chunks = (TimeChunk(slice(None, None, None), mask) for mask in masks)
@@ -533,6 +553,7 @@ class TimeSeries:
         return collection
 
     def resample(self, period_in_sec):
+        """ Create a collection based on resampling by time """
         collection = TimeSeriesCollection()
         collection.axis = 0
         collection.parent = self
@@ -558,6 +579,7 @@ class TimeSeries:
         return (data, labels)
 
     def rolling_window(self, size, stepsize=1):
+        """ Create a collection based on a rolling window """
         collection = TimeSeriesCollection()
         collection.axis = 0
         collection.parent = self
