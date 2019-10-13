@@ -36,9 +36,9 @@
   * [Prerequisites](#prerequisites)
   * [Installation](#installation)
 * [Usage](#usage)
-  * [CSV Backend](#csv_backend_usage)
-  * [AppOptics Backend](#ao_backend_usage)
-  * [TimeSeries](#timeseries_usage)
+  * [CSV Backend](#csv-backend-usage)
+  * [AppOptics Backend](#appoptics-backend-usage)
+  * [TimeSeries](#timeseries-usage)
 * [Roadmap](#roadmap)
 * [Contributing](#contributing)
 * [License](#license)
@@ -100,7 +100,7 @@ backends that communicate with specific time series databases.  The queries are 
 generators, a formatt familiar to Pythonistas.
 
 ```python
-data = Query(x for x in "metric.name" if x.some_label = "some_value").group("a_label")[start:end:resolution]
+data = Query(x for x in "metric.name" if x.some_label = "some_value").by("a_label")[start:end:resolution]
 ```
 
 The return value is a ``TimeSeries`` object that uses a Numpy array as backend.  That object can have 
@@ -119,21 +119,27 @@ If any columns are empty or don't contain a numeric value, the value becomes a `
 #### Basic CSV Usage
 
 ```python
+from timeseriesql.backends import CSVBackend
+
 data = CSVBackend(x for x in "path/to.csv")[:]
 ```
 
 #### Basic CSV Filtering
 
 ```python
+from timeseriesql.backends import CSVBackend
+
 data = CSVBackend(x for x in "path/to.csv" if x.label == "A")[:]
 data = CSVBackend(x for x in "path/to.csv" if x.label != "B")[:]
 data = CSVBackend(x for x in "path/to.csv" if x.label in ["B", "C", "G"])[:]
 data = CSVBackend(x for x in "path/to.csv" if x.label not in ["B", "C", "G"])[:]
 ```
 
-### Set the Labels
+#### Set the Labels
 
 ```python
+from timeseriesql.backends import CSVBackend
+
 data = CSVBackend(x for x in "path/to.csv").labels(
     [
         {"label": "one"},
@@ -147,7 +153,152 @@ data = CSVBackend(x for x in "path/to.csv").labels(
 )[:]
 ```
 
+### AppOptics Backend Usage
 
+[Appoptics](www.appoptics.com) is a commercial time series database product.  The backend converts a query into an 
+API call.
+
+The backend expects a ``APPOPTICS_TOKEN`` environment variable to be set in order to authenticate to AppOptics.
+
+#### AppOptics Query
+
+```python
+from timeseriesql.backends import AOBackend
+
+data = AOBackend(x for x in "metric.name")[3600:] #basic
+data = AOBackend(x * 100 for x in "metric.name")[3600:] #binary operations (+, -, /, *)
+data = AOBackend(x * 1.8 + 32 for x in "metric.name")[3600:] #multiple binary operations (°C to °F)
+data = AOBackend(x.max for x in "metric.name")[3600:] #get max value
+```
+
+#### AppOptics Filtering
+
+Currently only ``==`` is supported.
+
+```python
+from timeseriesql.backends import AOBackend
+
+data = AOBackend(x for x in "metric.name" if x.environment == 'production')[3600:]
+```
+
+#### AppOptics Grouping
+
+```python
+from timeseriesql.backends import AOBackend
+
+data = AOBackend(x for x in "metric.name").group('environment')[3600:]
+data = AOBackend(x - y for x,y in AOBackend((x.max for x in "metric1"), (x.min for x in "metric2")).by('tag1'))[3600:]
+```
+
+#### AppOptics Time
+```python
+from timeseriesql.backends import AOBackend
+
+data = AOBackend(x for x in "metric.name")[:] #no start or end time (not recommended)
+data = AOBackend(x for x in "metric.name")[3600:] #from now - 3600 seconds until now, resolution of 1
+data = AOBackend(x for x in "metric.name")[3600:1800] #from now - 3600 seconds until now - 1800 seconds, resolution of 1
+data = AOBackend(x for x in "metric.name")[3600::300] #from now - 3600 seconds until now resoultion of 300 seconds
+```
+
+### TimeSeries Usage
+
+The `TimeSeries` object is allows for manipulation of the time series data after the it's been queried from the 
+backend.  There are also helper functions to convert to a pandas `DataFrame` and plot using matplotlib.  
+
+In the following examples, the variables starting with `ts_` are assumed to be queried data from a backend.
+
+#### TimeSeries Operations
+
+```python
+
+# Basic mathematical operations (+, -, /, *)
+ts_1 + 5 # will return a new series
+ts_1 += 5 #will perform operation in place
+ts_1 += ts_2 #add together two TimeSeries
+
+```
+
+#### TimeSeries Time Index
+
+The time index is a array of floats but there is a built in method to convert the floats into `np.datetime64`.
+
+```python
+ts.time # array of floats
+ts.time.dt #array of np.datetime64
+```
+
+#### TimeSeries Merging
+
+`TimeSeries` objects can be combined but the ending time indexes must be the same.  This may require empty values 
+to be created where the indexes don't align.
+
+```python
+new_t = ts_1.merge([ts_2, ts_3])
+```
+
+#### TimeSeries Grouping/Reducing
+
+If there are multiple streams, they can be grouped and merged by the labels.
+
+```python
+reduced = ts_1.group(["hostname", "name"]).add() 
+reduced = ts_1.group("env").mean()
+reduced = ts_1.group("env").mean(axis=None) #setting the access to None will get the mean of the entire object
+```
+
+#### TimeSeries Special Indexing
+
+```python
+import numpy as np
+
+beg = np.datetime64('2019-02-25T03:00')
+end = np.datetime64('2019-02-25T04:00')
+
+ts_1[beg:end] # set a time range
+ts_1[beg : np.timedelta64(3, "m")] # fetch from beginning + 3 minutes
+ts_1[np.timedelta64(3, "m") :] #start from beginning + 3 minutes
+ts_1[: np.timedelta64(3, "m")] #end at the end - 3 minutes
+
+
+ts_1[{"hostname": "host2"}] # by labels
+
+```
+
+#### TimeSeries Rolling Windows
+
+The `rolling_window` method assumes that the data is filled and at a fixed resolution.  Number of periods is 
+an integer and not a time range.
+
+```python
+rolling_cum_sum = ts_1.rolling_window(12).add() #rolling cumsum
+rolling_mean = ts_1.rolling_window(12).mean() # rolling mean
+rolling = ts_1.rolling_window(12).median() #rolling median
+```
+
+#### TimeSeries Resample
+
+The `resample` method allows a smaller period to be aggregated into a larger period.
+
+```python
+resampled = ts_1.resample(300).mean() #resamples to 5 minutes and takes the mean
+```
+
+#### TimeSeries to Pandas
+
+The conversion returns 2 pandas DataFrames, one for the labels and the other for the data.
+
+```python
+data, labels = ts_1.to_pandas()
+```
+
+#### TimeSeries Matplotlib
+
+There is a helper function that will apply some sane defaults to a plotting function for a TimeSeries object.
+
+```python
+ts_1.plot(legend=True)
+plt.show()
+```
 
 <!-- ROADMAP -->
 ## Roadmap
