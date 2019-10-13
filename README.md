@@ -108,7 +108,7 @@ The return value is a ``TimeSeries`` object that uses a Numpy array as backend. 
 
 ### CSV Backend Usage
 
-Often time data is loaded from a CSV file.  The backend expects the first column to be the time index in 
+Often time series data is loaded from a CSV file.  The backend expects the first column to be the time index in 
 either a numerical timestamp or strings in ISO 8601 date or datetime format.  The filters are applied to the
 headers of the CSV.  If labels are not in the CSV and are supplied as part of the query, then filters will not
 be applied.
@@ -125,6 +125,8 @@ data = CSVBackend(x for x in "path/to.csv")[:]
 ```
 
 #### Basic CSV Filtering
+
+For CSV files the labels are the column headers.  If there are columns that are not needed, they can be filtered out.
 
 ```python
 from timeseriesql.backends import CSVBackend
@@ -223,8 +225,8 @@ ts_1 += ts_2 #add together two TimeSeries
 The time index is a array of floats but there is a built in method to convert the floats into `np.datetime64`.
 
 ```python
-ts.time # array of floats
-ts.time.dt #array of np.datetime64
+ts_1.time # array of floats
+ts_1.time.dt #array of np.datetime64
 ```
 
 #### TimeSeries Merging
