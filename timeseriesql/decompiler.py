@@ -3,6 +3,7 @@ import dis
 
 class Variable:
     """ A generic Variable class to be used with decompiler"""
+
     def __init__(self, name, labels=[]):
         self.name = name
         self.labels = labels
@@ -13,6 +14,7 @@ class Variable:
 
 class StackVariable:
     """ A class for a variable on the stack to be used with decompiler """
+
     def __init__(self, name, value):
         self.name = name
         self.value = value
@@ -23,6 +25,7 @@ class StackVariable:
 
 class Constant:
     """ A class to define a variable as a constant term to be used with decompiler"""
+
     def __init__(self, value):
         self.value = value
 
@@ -32,6 +35,7 @@ class Constant:
 
 class FilterVariable:
     """ A variable class for filters to be used with decompiler """
+
     def __init__(self, base):
         if isinstance(base, (Constant, StackVariable)):
             self.type = "string"
@@ -45,6 +49,23 @@ class FilterVariable:
         return f"{self.type} - {self.value}"
 
 
+class BinaryOperation:
+    def __init__(self, left, right, opname):
+        self.left = left
+        self.right = right
+        self.opname = opname
+
+    def binary_repr(self):
+        return [self.left, self.right, self.opname]
+
+
+class FunctionCall:
+    def __init__(self, args, kwargs, name):
+        self.args = args
+        self.kwargs = kwargs
+        self.name = name
+
+
 class Decompiler:
     """
     This class translates python bytecode to a format the Query class can use.
@@ -54,6 +75,7 @@ class Decompiler:
     Typically this class is not used directly by backends.
     
     """
+
     def __init__(self, gen, plan, *args, **kwargs):
         """
         Parameters
@@ -70,34 +92,36 @@ class Decompiler:
         self.stack = []
         #: dict of function: Dictionary for supported opcodes
         self.opcodes = {
-            "FOR_ITER": self.for_iter,
-            "LOAD_FAST": self.load_fast,
-            "STORE_FAST": self.store_fast,
-            "YIELD_VALUE": self.yield_value,
-            "LOAD_ATTR": self.load_attr,
-            "LOAD_CONST": self.load_const,
-            "COMPARE_OP": self.compare_op,
-            "LOAD_GLOBAL": self.load_global,
-            "LOAD_DEREF": self.load_deref,
-            "POP_TOP": self.pop_top,
-            "JUMP_ABSOLUTE": self.jump_absolute,
-            "RETURN_VALUE": self.return_value,
-            "POP_JUMP_IF_FALSE": self.no_op,
-            "BINARY_SUBSCR": self.binary_subscr,
-            "UNPACK_SEQUENCE": self.unpack_sequence,
-            "BINARY_MULTIPLY": self.binary_ops,
-            "BINARY_SUBTRACT": self.binary_ops,
-            "BINARY_POWER": self.binary_ops,
-            "BINARY_TRUE_DIVIDE": self.binary_ops,
+            "BINARY_ADD": self.binary_ops,
+            "BINARY_AND": self.binary_ops,
             "BINARY_FLOOR_DIVIDE": self.binary_ops,
+            "BINARY_LSHIFT": self.binary_ops,
             "BINARY_MATRIX_MULTIPLY": self.binary_ops,
             "BINARY_MODULO": self.binary_ops,
-            "BINARY_ADD": self.binary_ops,
-            "BINARY_LSHIFT": self.binary_ops,
-            "BINARY_RSHIFT": self.binary_ops,
-            "BINARY_AND": self.binary_ops,
-            "BINARY_XOR": self.binary_ops,
+            "BINARY_MULTIPLY": self.binary_ops,
             "BINARY_OR": self.binary_ops,
+            "BINARY_POWER": self.binary_ops,
+            "BINARY_RSHIFT": self.binary_ops,
+            "BINARY_SUBSCR": self.binary_subscr,
+            "BINARY_SUBTRACT": self.binary_ops,
+            "BINARY_TRUE_DIVIDE": self.binary_ops,
+            "BINARY_XOR": self.binary_ops,
+            "COMPARE_OP": self.compare_op,
+            "CALL_FUNCTION": self.call_function,
+            "CALL_FUNCTION_KW": self.call_function,
+            "FOR_ITER": self.for_iter,
+            "JUMP_ABSOLUTE": self.jump_absolute,
+            "LOAD_ATTR": self.load_attr,
+            "LOAD_CONST": self.load_const,
+            "LOAD_DEREF": self.load_deref,
+            "LOAD_FAST": self.load_fast,
+            "LOAD_GLOBAL": self.load_global,
+            "POP_JUMP_IF_FALSE": self.no_op,
+            "POP_TOP": self.pop_top,
+            "RETURN_VALUE": self.return_value,
+            "STORE_FAST": self.store_fast,
+            "UNPACK_SEQUENCE": self.unpack_sequence,
+            "YIELD_VALUE": self.yield_value,
         }
 
     def decompile(self):
@@ -192,15 +216,33 @@ class Decompiler:
     def return_value(self, instr):
         pass
 
+    def call_function(self, instr):
+        kwargs = {}
+        args = []
+        arg_count = instr.arg
+        if instr.opname == "CALL_FUNCTION_KW":
+            kwarg_names = self.stack.pop()
+            for n in reversed(kwarg_names.value):
+                kwargs[n] = self.stack.pop()
+                arg_count -= 1
+        for _ in range(arg_count):
+            args.insert(0, self.stack.pop())
+        name = self.stack.pop().name
+        func = FunctionCall(args, kwargs, name)
+        if self.plan.calc:
+            self.plan.calc.append(func)
+        else:
+            self.plan.calc = [func]
+        self.stack.append(func)
+
     def binary_ops(self, instr):
         """ Handle binary operation instructions """
         binary_op = []
         right = self.stack.pop()
+        left = None
         if len(self.stack) > 0:
-            left = self.stack.pop()
-            binary_op.append(left.binary_repr())
-        binary_op.append(right.binary_repr())
-        binary_op.append(instr.opname)
+            left = self.stack.pop().binary_repr()
+        binary_op = BinaryOperation(left, right.binary_repr(), instr.opname)
         if self.plan.calc:
             self.plan.calc.append(binary_op)
         else:

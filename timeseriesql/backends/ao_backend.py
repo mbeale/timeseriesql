@@ -1,8 +1,18 @@
 import os
 import requests
 import numbers
+import time
 from timeseriesql.query import Query, Plan
 from timeseriesql.timeseries import TimeSeries
+from timeseriesql.decompiler import BinaryOperation, FunctionCall
+
+
+class AggregationFunction:
+
+    func_name = None
+
+    def __init__(self, func_name):
+        self.func_name = func_name
 
 
 def create_scalar_time_series(series, scalar):
@@ -11,6 +21,74 @@ def create_scalar_time_series(series, scalar):
     scaling it by the desired scalar
     """
     return f'scale(divide([{series},{series}]),{{"factor":"{scalar}"}})'
+
+
+def find_value(val, plan, values):
+    if isinstance(val, numbers.Number):
+        return val
+    variable = [values[i] for i, n in enumerate(plan.variables) if n.name == val]
+    if len(variable) > 0:
+        return variable[0]
+    return AggregationFunction(val)
+
+
+def handle_calc(plan, values):
+    query = None
+
+    for e in plan.calc:
+        if isinstance(e, BinaryOperation):
+            operation = e.opname
+            if e.left:
+                left = find_value(e.left, plan, values)
+                right = find_value(e.right, plan, values)
+            else:
+                left = query
+                right = find_value(e.right, plan, values)
+            query = binary_operation(left, right, operation)
+        elif isinstance(e, FunctionCall):
+            query = call_function(e, query, plan, values)
+        else:
+            raise AttributeError(f"unexpected calc type of {type(e)}")
+    return query
+
+
+def call_function(func, query, plan, values):
+
+    valid_func_names = [
+        "abs",
+        "bottom",
+        "ceiling",
+        "derive",
+        "fill",
+        "filter",
+        "floor",
+        "integrate",
+        "last_fill",
+        "max",
+        "mean",
+        "min",
+        "moving_average",
+        "rate",
+        "sum",
+        "top",
+        "window",
+        "zero_fill",
+    ]
+
+    func_name = func.name
+    query = query if isinstance(func.args[0], FunctionCall) else find_value(func.args[0].name, plan, values)
+    kwargs = ""
+    for k, v in func.kwargs.items():
+        if kwargs == "":
+            kwargs = ",{"
+        else:
+            kwargs += ","
+        kwargs += f'"{k}":"{v.value}"'
+    if kwargs != "":
+        kwargs += "}"
+    if func_name not in valid_func_names:
+        raise NotImplementedError(f"{func_name} is not a valid function")
+    return f"{func_name}({query}{kwargs})"
 
 
 def binary_operation(left, right, optype):
@@ -84,6 +162,12 @@ class AOBackend(Query):
             raise ValueError("{} - {}".format(response.status_code, response.text))
         return response
 
+    @property
+    def composite(self):
+        now = int(time.time())
+        plan = self._generate_plan()[0]
+        return self.create_query(plan, {"start_time": now - 3600, "end_time": now, "resolution": 1})
+
     def create_query(self, plan, period):
         """Create a composite based on the plan and period"""
         query = ""
@@ -127,26 +211,7 @@ class AOBackend(Query):
         elif plan.calc is None:
             query = CompositeDefinition(f"[{','.join([v for v in values])}]")
         else:
-            for e in plan.calc:
-                if len(e) == 3:
-                    left = (
-                        e[0]
-                        if isinstance(e[0], numbers.Number)
-                        else [values[i] for i, n in enumerate(plan.variables) if n.name == e[0]][0]
-                    )
-                    right = (
-                        e[1]
-                        if isinstance(e[1], numbers.Number)
-                        else [values[i] for i, n in enumerate(plan.variables) if n.name == e[1]][0]
-                    )
-                    query = binary_operation(left, right, e[2])
-                else:
-                    right = (
-                        e[0]
-                        if isinstance(e[0], numbers.Number)
-                        else [values[i] for i, n in enumerate(plan.variables) if n.name == e[0]][0]
-                    )
-                    query = binary_operation(query, right, e[1])
+            query = handle_calc(plan, values)
         if plan.group:
             labels = ",".join([f'"{l}"' for l in plan.group[0]])
             query = CompositeDefinition(f"group_by({labels},{query})")

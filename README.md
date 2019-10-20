@@ -202,6 +202,12 @@ data = AOBackend(x for x in "metric.name")[3600:1800] #from now - 3600 seconds u
 data = AOBackend(x for x in "metric.name")[3600::300] #from now - 3600 seconds until now resoultion of 300 seconds
 ```
 
+#### AppOptics Functions
+```python
+data = AOBackend(sum(derive(x)) for x in "metric.name")[3600:] #get the sums of the derivatives
+data = AOBackend(zero_fill(x) for x in "metric.name")[3600::60] #zero_fill
+```
+
 ### TimeSeries Usage
 
 The `TimeSeries` object is allows for manipulation of the time series data after the it's been queried from the 
