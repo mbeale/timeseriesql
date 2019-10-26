@@ -65,6 +65,9 @@ class FunctionCall:
         self.kwargs = kwargs
         self.name = name
 
+    def binary_repr(self):
+        return self
+
 
 class Decompiler:
     """

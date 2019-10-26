@@ -13,6 +13,7 @@ Not in any particular order
 * Read the Docs
 * fill functionality
 * Type annotations
+* lazy evaluation/optimization
 
 ## Charting
 

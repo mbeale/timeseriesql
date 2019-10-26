@@ -15,6 +15,9 @@ class AggregationFunction:
         self.func_name = func_name
 
 
+function_map = {}
+
+
 def create_scalar_time_series(series, scalar):
     """
     use a trick to create a scalar time series by dividing a timeseries by itself and then 
@@ -26,9 +29,16 @@ def create_scalar_time_series(series, scalar):
 def find_value(val, plan, values):
     if isinstance(val, numbers.Number):
         return val
-    variable = [values[i] for i, n in enumerate(plan.variables) if n.name == val]
+    filter_val = val
+    if hasattr(val, "name"):
+        filter_val = val.name
+    variable = [values[i] for i, n in enumerate(plan.variables) if n.name == filter_val]
     if len(variable) > 0:
         return variable[0]
+    if isinstance(val, FunctionCall):
+        func = function_map[hex(id(val))]
+        del function_map[hex(id(val))]
+        return func
     return AggregationFunction(val)
 
 
@@ -46,13 +56,15 @@ def handle_calc(plan, values):
                 right = find_value(e.right, plan, values)
             query = binary_operation(left, right, operation)
         elif isinstance(e, FunctionCall):
-            query = call_function(e, query, plan, values)
+            function_map[hex(id(e))] = call_function(e, plan, values)
         else:
             raise AttributeError(f"unexpected calc type of {type(e)}")
+    if not query and len(function_map) > 0:
+        query = function_map.popitem()[1]
     return query
 
 
-def call_function(func, query, plan, values):
+def call_function(func, plan, values):
 
     valid_func_names = [
         "abs",
@@ -76,7 +88,7 @@ def call_function(func, query, plan, values):
     ]
 
     func_name = func.name
-    query = query if isinstance(func.args[0], FunctionCall) else find_value(func.args[0].name, plan, values)
+    query = find_value(func.args[0], plan, values)
     kwargs = ""
     for k, v in func.kwargs.items():
         if kwargs == "":

@@ -90,8 +90,8 @@ class TestAOBackend(unittest.TestCase):
 
     def test_scaler_create_trick(self):
         self.maxDiff = None
-        series = 's("AWS.EC2.CPUUtilization",{"hostname":"ip-172-26-26-192.ec2.internal"},{period:"60","function":"mean"})'
-        expected_result = 'scale(divide([s("AWS.EC2.CPUUtilization",{"hostname":"ip-172-26-26-192.ec2.internal"},{period:"60","function":"mean"}),s("AWS.EC2.CPUUtilization",{"hostname":"ip-172-26-26-192.ec2.internal"},{period:"60","function":"mean"})]),{"factor":"100"})'
+        series = 's("AWS.EC2.CPUUtilization",{"hostname":"ip-x.ec2.internal"},{period:"60","function":"mean"})'
+        expected_result = 'scale(divide([s("AWS.EC2.CPUUtilization",{"hostname":"ip-x.ec2.internal"},{period:"60","function":"mean"}),s("AWS.EC2.CPUUtilization",{"hostname":"ip-x.ec2.internal"},{period:"60","function":"mean"})]),{"factor":"100"})'
 
         actual_result = create_scalar_time_series(series, 100)
         self.assertEqual(actual_result, expected_result)
@@ -109,6 +109,17 @@ class TestAOBackend(unittest.TestCase):
         expected_value = 'sum(derive(s("test","*",{period:"1","function":"mean"})))'
         a = AOBackend(sum(derive(x)) for x in "test")
         self.assertEqual(a.composite, expected_value)
+
+    def test_complex_composite_1(self):
+        import dis
+
+        expected_result = 'multiply([divide([zero_fill(sum(s("metric1","*",{period:"1","function":"sum"}))),zero_fill(sum(s("metric2","*",{period:"1","function":"sum"})))]),scale(divide([divide([zero_fill(sum(s("metric1","*",{period:"1","function":"sum"}))),zero_fill(sum(s("metric2","*",{period:"1","function":"sum"})))]),divide([zero_fill(sum(s("metric1","*",{period:"1","function":"sum"}))),zero_fill(sum(s("metric2","*",{period:"1","function":"sum"})))])]),{"factor":"100"})])'
+        gen = (
+            zero_fill(sum(x)) / zero_fill(sum(y)) * 100
+            for x, y in AOBackend((x.sum for x in "metric1"), (x.sum for x in "metric2"))
+        )
+        a = AOBackend(gen)
+        self.assertEqual(a.composite, expected_result)
 
     @mock.patch("timeseriesql.backends.ao_backend.requests.get", side_effect=mocked_requests_get)
     def test_end_to_end(self, mock_requests):
