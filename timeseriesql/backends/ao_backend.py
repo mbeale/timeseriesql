@@ -108,11 +108,11 @@ def binary_operation(left, right, optype):
     op_handlers = {
         "BINARY_MULTIPLY": "multiply",
         "BINARY_SUBTRACT": "subtract",
-        "BINARY_POWER": None,
+        "BINARY_POWER": None, #multiply query by itself x times, only useful with scalars
         "BINARY_TRUE_DIVIDE": "divide",
         "BINARY_FLOOR_DIVIDE": "divide",
         "BINARY_MATRIX_MULTIPLY": "multiply",
-        "BINARY_MODULO": None,
+        "BINARY_MODULO": None, #num - divisor * floor(num / divisor))
         "BINARY_ADD": "sum",
         "BINARY_SUBSCR": None,
         "BINARY_LSHIFT": None,

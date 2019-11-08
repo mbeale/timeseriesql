@@ -370,6 +370,13 @@ class TimeSeries:
                 if k not in l or l[k] != labels[k]:
                     del labels[k]
         return labels
+    
+    def _generate_labels(self):
+        common_labels = self._get_unique_keys().keys()
+        labels = []
+        for l in self.labels:
+            labels.append(".".join([str(v) for k, v in l.items() if k not in common_labels]))
+        return labels
 
     @property
     def time(self):
@@ -673,11 +680,11 @@ class TimeSeries:
         ax.set_title(self._generate_title(), fontsize=18)
         ax.set_xlabel = xlabel
         # OPTION: plot each stream separate axs?
-        # OPTION: set bounds ax.fill_between(df.index, df['lower_bound'], df['upper_bound'], alpha=.25)
         # OPTION: markers/events/annotations
         ax.plot(date_index, self.data, **kwargs)
         if legend:
-            ax.legend(title="Streams")
+            labels = self._generate_labels()
+            ax.legend(title="Streams", labels=labels[:5])
 
     def copy(self):
         """Override the copy method to include the labels

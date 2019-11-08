@@ -26,7 +26,6 @@ class TimeIndex(np.ndarray):
     def dt(self):
         """ creates a datetime object for the time index """
         if not self._dt:
-            self._dt = np.array(
-                [np.datetime64(int(t), "s") for t in np.nditer(self)], dtype=np.datetime64
-            )
+            vfunc = np.vectorize(lambda x: np.datetime64(int(x), "s"))
+            self._dt = vfunc(self)
         return self._dt
