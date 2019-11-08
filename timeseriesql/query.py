@@ -1,7 +1,11 @@
 import os
 import time
+import numbers
+import re
 from .timeseries import TimeSeries
 from .decompiler import Decompiler
+
+second_conversions = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
 
 
 class Plan:
@@ -86,6 +90,19 @@ class Query:
         [3600:1800] start_time = now - 3600 seconds, end_time = now - 1800 seconds
         [3600:1800:300] start_time = now - 3600 seconds, end_time = now - 1800 seconds, resolution = 5 minutes
 
+        String Examples
+        ---------------
+        ['15m'] start_time = now - 900 seconds
+
+        date string options are:
+
+        s - seconds
+        m - minutes
+        h - hours
+        d - days
+        w - weeks
+        y - years
+
         Returns
         -------
         a period dictionary
@@ -96,7 +113,7 @@ class Query:
         now = int(time.time())
         if isinstance(self.period, int):
             start_offset = self.period
-        else:
+        elif isinstance(self.period, slice):
             start_offset = (
                 self.period.start
                 if self.period and self.period.start
@@ -106,6 +123,17 @@ class Query:
             resolution = (
                 self.period.step if self.period and self.period.step else self.DEFAULT_RESOLUTION
             )
+        elif isinstance(self.period, str):
+            try:
+                _, n, uom = re.split("(\d+)", self.period)
+                n = int(n)
+                if uom not in second_conversions.keys():
+                    self._raise_period_index_error()
+                start_offset = n * second_conversions[uom]
+            except:
+                self._raise_period_index_error()
+        else:
+            self._raise_period_index_error()
 
         period = {
             "start_time": now - start_offset,
@@ -113,6 +141,11 @@ class Query:
             "resolution": resolution,
         }
         return period
+
+    def _raise_period_index_error(self):
+        raise IndexError(
+            f"Only slices, integers, and date format strings are allowed not {type(self.period)}"
+        )
 
     def _generate_plan(self):
         """This function generates a plan for the query engine to execute
@@ -180,4 +213,4 @@ class Query:
 
     def fetch(self):
         """Fetch all items.  This can be overridden with sane defaults"""
-        return self.__getitem__(None)
+        return self[:]

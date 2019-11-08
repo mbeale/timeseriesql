@@ -176,10 +176,13 @@ class TestQuery(unittest.TestCase):
             [np.float64(t4.time[0] + x) for x in range(0, 3600, Query().DEFAULT_RESOLUTION)],
             dtype=np.float64,
         )
+        t5 = Query(x.mean for x in "test")["1h"]
+
         self.assertTrue(np.array_equal(t1.time, t1_timeindex))
         self.assertTrue(np.array_equal(t2.time, t2_timeindex))
         self.assertTrue(np.array_equal(t3.time, t3_timeindex))
         self.assertTrue(np.array_equal(t4.time, t4_timeindex))
+        self.assertTrue(np.array_equal(t5.time, t1_timeindex))
 
     def test_aggregation_functions(self):
         q = Query(mean(x) for x in "test" if x.label1 == "prod")

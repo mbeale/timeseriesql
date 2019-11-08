@@ -167,9 +167,9 @@ The backend expects a ``APPOPTICS_TOKEN`` environment variable to be set in orde
 ```python
 from timeseriesql.backends import AOBackend
 
-data = AOBackend(x for x in "metric.name")[3600:] #basic
-data = AOBackend(x * 100 for x in "metric.name")[3600:] #binary operations (+, -, /, *)
-data = AOBackend(x * 1.8 + 32 for x in "metric.name")[3600:] #multiple binary operations (°C to °F)
+data = AOBackend(x for x in "metric.name")['1h'] #basic
+data = AOBackend(x * 100 for x in "metric.name")['1h'] #binary operations (+, -, /, *)
+data = AOBackend(x * 1.8 + 32 for x in "metric.name")['1h'] #multiple binary operations (°C to °F)
 data = AOBackend(x.max for x in "metric.name")[3600:] #get max value
 ```
 
