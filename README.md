@@ -106,6 +106,14 @@ data = Query(x for x in "metric.name" if x.some_label = "some_value").by("a_labe
 The return value is a ``TimeSeries`` object that uses a Numpy array as backend.  That object can have 
 ``ufuncs`` and other numpy functions applied against it.  More examples to come.
 
+There are defaults for start and resolution that are controlled by environment variables.  That helps avoid 
+fetching all measurements from the beginning of time by accident.
+
+```bash
+DEFAULT_START_OFFSET #defaults to 3600 seconds
+DEFAULT_RESOLUTION   #defaults to 60 seconds
+```
+
 ### CSV Backend Usage
 
 Often time series data is loaded from a CSV file.  The backend expects the first column to be the time index in 
