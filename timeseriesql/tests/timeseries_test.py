@@ -348,6 +348,7 @@ class TestTimeSeries(unittest.TestCase):
         new_t = avg_1.merge([avg_2, avg_3])
 
         resampled = new_t.resample(300).mean()
+        resampled2 = new_t.resample('5m').mean()
         self.assertEqual(len(resampled),2)
         answer = [
             [2., 6., 10.],
@@ -357,6 +358,7 @@ class TestTimeSeries(unittest.TestCase):
         #0,3,6,9,12 - 15,18,21,24,27
         #0,5,10,15,20 - 25,30,35,40,45
         self.assertTrue(np.array_equal(resampled, answer))
+        self.assertTrue(np.array_equal(resampled2, answer))
 
     def test_label_reduction(self):
         t1, t2, t3 = self.basic_timeseries

@@ -1,4 +1,20 @@
 import numpy as np
+import re
+
+second_conversions = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
+
+
+def convert_string_to_seconds(s):
+    try:
+        _, n, uom = re.split("(\d+)", s)
+        n = int(n)
+        if uom not in second_conversions.keys():
+            raise ValueError(
+                f"{uom} is not valid in the list of valid values: {second_conversions.keys()}"
+            )
+        return n * second_conversions[uom]
+    except:
+        raise ValueError(f"Invalid format.  Expecting NumberUOM (15h) but instead recieved {s}")
 
 
 class TimeIndex(np.ndarray):

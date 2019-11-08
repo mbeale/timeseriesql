@@ -1,11 +1,9 @@
 import os
 import time
 import numbers
-import re
 from .timeseries import TimeSeries
 from .decompiler import Decompiler
-
-second_conversions = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
+from .time import convert_string_to_seconds
 
 
 class Plan:
@@ -125,12 +123,9 @@ class Query:
             )
         elif isinstance(self.period, str):
             try:
-                _, n, uom = re.split("(\d+)", self.period)
-                n = int(n)
-                if uom not in second_conversions.keys():
-                    self._raise_period_index_error()
-                start_offset = n * second_conversions[uom]
-            except:
+                start_offset = convert_string_to_seconds(self.period)
+            except Exception as e:
+                print(e)
                 self._raise_period_index_error()
         else:
             self._raise_period_index_error()

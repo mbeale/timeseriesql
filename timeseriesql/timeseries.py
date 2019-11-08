@@ -1,7 +1,7 @@
 import numpy as np
 from collections.abc import Sequence
 from .np_array import NumpyArray
-from .time import TimeIndex
+from .time import TimeIndex, convert_string_to_seconds
 from itertools import compress
 from .timeseries_collection import TimeSeriesCollection
 from .time_chunk import TimeChunk
@@ -559,14 +559,16 @@ class TimeSeries:
         collection.parent = self
         return collection
 
-    def resample(self, period_in_sec):
+    def resample(self, period):
         """ Create a collection based on resampling by time """
+        if isinstance(period, str):
+            period = convert_string_to_seconds(period)
         collection = TimeSeriesCollection()
         collection.axis = 0
         collection.parent = self
         collection.collapse_index = True
         columns = [x for x in range(0,self.data.shape[1])]
-        collection.chunks = (TimeChunk(slice(*self._get_slice_by_datetime(np.datetime64(int(t), "s"), np.timedelta64(period_in_sec, "s"))), columns) for t in range(int(self.time[0]), int(self.time[-1]), period_in_sec))
+        collection.chunks = (TimeChunk(slice(*self._get_slice_by_datetime(np.datetime64(int(t), "s"), np.timedelta64(period, "s"))), columns) for t in range(int(self.time[0]), int(self.time[-1]), period))
         return collection
 
     def to_pandas(self):
