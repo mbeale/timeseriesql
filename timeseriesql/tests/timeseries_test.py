@@ -304,6 +304,21 @@ class TestTimeSeries(unittest.TestCase):
         # data
         self.assertTrue(np.array_equal(data.iloc[4,1], new_t[4, 1]))
 
+    def test_weighted_rolling_window(self):
+        avg_1, avg_2, avg_3 = self.basic_timeseries
+        avg_2 *= 3
+        avg_3 *= 5
+        new_t = avg_1.merge([avg_2, avg_3])
+
+        rolling = new_t.rolling_window(3).average(weights=[1,2,3])
+        answer = np.array([0.0, 0.0, 4./3., 7./3, 10./3, 13./3, 16./3, 19./3, 22./3, 25./3])
+        answer2 = np.array([0.0, 0.0, 4, 7, 10, 13, 16, 19, 22, 25])
+        answer3 = np.array([0.0, 0.0, 100./15., 175./15., 250./15., 325./15., 400./15., 475./15., 550./15., 625./15.])
+
+        self.assertTrue(np.array_equal(rolling[2:, 0], answer[2:]))
+        self.assertTrue(np.array_equal(rolling[2:, 1], answer2[2:]))
+        self.assertTrue(np.array_equal(rolling[2:, 2], answer3[2:]))
+       
     def test_rolling_window(self):
         avg_1, avg_2, avg_3 = self.basic_timeseries
         avg_2 *= 3
