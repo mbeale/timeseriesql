@@ -109,7 +109,7 @@ The return value is a ``TimeSeries`` object that uses a Numpy array as backend. 
 There are defaults for start and resolution that are controlled by environment variables.  That helps avoid 
 fetching all measurements from the beginning of time by accident.
 
-```bash
+```sh
 DEFAULT_START_OFFSET #defaults to 3600 seconds
 DEFAULT_RESOLUTION   #defaults to 60 seconds
 ```
