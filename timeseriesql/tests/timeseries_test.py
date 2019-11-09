@@ -461,9 +461,3 @@ class TestTimeSeries(unittest.TestCase):
         out_of_bounds_date = np.datetime64(int(t1.time[0] - 86400), "s")
         new_t = t1[out_of_bounds_date:np.timedelta64(3, "m")]
         self.assertEqual(len(new_t), 0)
-
-    def test_matplotlib(self):
-        t1, t2, t3 = self.basic_timeseries
-
-        t1.plot(legend=True)
-        self.assertEqual(1, len(plt.get_fignums()))
