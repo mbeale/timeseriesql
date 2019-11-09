@@ -427,13 +427,15 @@ class TimeSeries:
         self._time = np.array(np.concatenate([self._time, new_data._time]), dtype=np.float64)
 
 
-    def merge(self, tseries):
+    def merge(self, tseries, fill=np.nan):
         """Merge multiple timeseries into one TimeSeries object
 
         Parameters
         ----------
         tseries: list of TimeSeries
             a list with time series that need to be merged with self
+        fill:
+            can be substituted with a float or np.float if nan is not desired for empty columns
 
         Returns
         -------
@@ -477,6 +479,8 @@ class TimeSeries:
         new_t = TimeSeries(
             shape=(len(timeindex), columns), labels=self.labels.copy(), time=timeindex
         )
+        if  fill != np.nan and isinstance(fill, (float, np.float64)):
+            new_t[:] = fill
 
         row_mask = np.isin(timeindex, self.time)
         new_t.data[row_mask, 0 : self.data.shape[1]] = self.data

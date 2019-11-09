@@ -180,6 +180,41 @@ class TestTimeSeries(unittest.TestCase):
 
         self.assertRaises(NotImplementedError, t2.merge, [0,1,2,3,4])
 
+    def test_merge_default_values(self):
+        t1, t2, t3 = self.basic_timeseries
+        new_t = t1.merge([t2, t3])
+        # create a larger time series, starts after
+        new_index = np.hstack(
+            [
+                self.timeindex,
+                [x for x in range(int(self.timeindex[-1]) + 60, int(self.timeindex[-1]) + 240, 60)],
+            ]
+        )
+
+        t1 = TimeSeries(
+            shape=(13, 1),
+            labels={"name": "metric2", "env": "prod", "hostname": "host1"},
+            time=new_index,
+        )
+        t1[:] = np.array([i for i in range(13)]).reshape(13, 1)
+        t2 = TimeSeries(
+            shape=(13, 1),
+            labels={"name": "metric2", "env": "prod", "hostname": "host2"},
+            time=new_index,
+        )
+        t2[:] = np.array([i for i in range(13)]).reshape(13, 1)
+        t3 = TimeSeries(
+            shape=(13, 1),
+            labels={"name": "metric2", "env": "prod", "hostname": "host3"},
+            time=new_index,
+        )
+        t3[:] = np.array([i for i in range(13)]).reshape(13, 1)
+        larger_t = t1.merge([t2, t3])
+
+        merged_t = new_t.merge([larger_t], fill=7.)
+
+        self.assertEqual(merged_t[12, 1],7)
+
 
     def test_group_reduce(self):
         t1, t2, t3 = self.basic_timeseries
