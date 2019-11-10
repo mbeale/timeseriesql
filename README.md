@@ -59,7 +59,6 @@ platforms.  The goal of this project is to create a time series specific library
 
 * [Numpy](https://numpy.org)
 * [Pandas](https://pandas.pydata.org)
-* [Matplotlib](https://matplotlib.org)
 
 
 
@@ -305,15 +304,6 @@ The conversion returns 2 pandas DataFrames, one for the labels and the other for
 
 ```python
 data, labels = ts_1.to_pandas()
-```
-
-#### TimeSeries Matplotlib
-
-There is a helper function that will apply some sane defaults to a plotting function for a TimeSeries object.
-
-```python
-ts_1.plot(legend=True)
-plt.show()
 ```
 
 <!-- ROADMAP -->
