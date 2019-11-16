@@ -4,7 +4,6 @@ import copy
 import time
 import math
 from timeseriesql.timeseries import TimeSeries
-import matplotlib.pyplot as plt
 
 
 class TestTimeSeries(unittest.TestCase):
@@ -394,6 +393,14 @@ class TestTimeSeries(unittest.TestCase):
         #0,5,10,15,20 - 25,30,35,40,45
         self.assertTrue(np.array_equal(resampled, answer))
         self.assertTrue(np.array_equal(resampled2, answer))
+
+    def test_label_wrap(self):
+        t1, t2, t3 = self.basic_timeseries
+        new_t = t1.merge([t2, t3])
+
+        self.assertEqual(new_t[:,0].labels, [{"name": "metric1", "env": "prod", "hostname": "host1"}])
+        self.assertEqual(new_t[:,0:2].labels, [{"name": "metric1", "env": "prod", "hostname": "host1"},{"name": "metric1", "env": "prod", "hostname": "host2"}])
+
 
     def test_label_reduction(self):
         t1, t2, t3 = self.basic_timeseries

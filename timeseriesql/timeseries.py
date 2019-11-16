@@ -213,15 +213,15 @@ class TimeSeries:
         # if a label filter, return view for the correct streams
         try:
             time_index = self._convert_time_index(items)
-            return self.wrap_new_data(self.data.__getitem__(items), time=self.time[time_index])
+            return self.wrap_new_data(self.data.__getitem__(items), time=self.time[time_index], ndx=items)
         except IndexError as e:
             index = self._handle_index_error(items, e)
             time_index = self._convert_time_index(index)
-            return self.wrap_new_data(self.data.__getitem__(index), time=self.time[time_index])
+            return self.wrap_new_data(self.data.__getitem__(index), time=self.time[time_index], ndx=index)
         except TypeError as e:
             index = self._handle_type_error(items, e)
             time_index = self._convert_time_index(index)
-            return self.wrap_new_data(self.data.__getitem__(index), time=self.time[time_index])
+            return self.wrap_new_data(self.data.__getitem__(index), time=self.time[time_index], ndx=index)
 
     def __setitem__(self, key, item):
         """ Set the item based off of a key in data """
@@ -383,7 +383,7 @@ class TimeSeries:
         """Return only the TimeSeries index"""
         return TimeIndex(self._time.view(np.ndarray))
 
-    def wrap_new_data(self, out_arr, time=None):
+    def wrap_new_data(self, out_arr, time=None, ndx=None):
         """ Wrap a value returned from a ufunc in a TimeSeries object """
         if not isinstance(out_arr, np.ndarray) or not out_arr.shape:
             return out_arr
@@ -400,8 +400,14 @@ class TimeSeries:
             out_arr = out_arr.reshape((rows, columns))
             new_to = TimeSeries(shape=(rows, columns), time=time, labels=self.labels)
             new_to.data[:] = out_arr
-            label = self.parent._least_common_labels([x for x in range(0,self.parent.data.shape[1])])
-            new_to.labels = [label for _ in range(columns)]
+            if ndx and len(ndx) > 1 and isinstance(ndx[1], (slice, int)):
+                labels = self.labels[ndx[1]]
+                if not isinstance(labels, list):
+                    labels = [labels]
+                new_to.labels = labels
+            else:
+                label = self.parent._least_common_labels([x for x in range(0,self.parent.data.shape[1])])
+                new_to.labels = [label for _ in range(columns)]
         elif self.data.shape[1] == out_arr.shape[0]:
             columns = self.data.shape[1]
             rows = out_arr.shape[0] if len(out_arr.shape) > 1 else 1
