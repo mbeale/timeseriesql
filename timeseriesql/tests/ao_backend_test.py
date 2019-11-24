@@ -4,7 +4,6 @@ import json
 from unittest import mock
 from timeseriesql.backends.ao_backend import AOBackend, create_scalar_time_series
 from timeseriesql.query import Plan
-from timeseriesql.decompiler import Variable, FilterVariable, Constant
 
 
 def mocked_requests_get(*args, **kwargs):
@@ -43,10 +42,10 @@ class TestAOBackend(unittest.TestCase):
         self.assertEqual(a.composite, 's("test",{"label1":"prod"},{period:"1","function":"mean"})')
 
         a = AOBackend(x for x in "test" if x.label1 in ["prod", "prod2"])
-        self.assertRaises(AttributeError, getattr, a, "composite")
+        self.assertRaises(NotImplementedError, getattr, a, "composite")
 
         a = AOBackend(x for x in "test" if "prod" == "prod")
-        self.assertRaises(AttributeError, getattr, a, "composite")
+        self.assertRaises(NotImplementedError, getattr, a, "composite")
 
     def test_binary_operations(self):
         a = AOBackend(x * 100 for x in "test" if x.label1 == "prod")
@@ -86,7 +85,7 @@ class TestAOBackend(unittest.TestCase):
         self.assertEqual(a.composite, expected_value2)
 
         a = AOBackend(x ^ 3 for x in "test")
-        self.assertRaises(TypeError, getattr, a, "composite")
+        self.assertRaises(NotImplementedError, getattr, a, "composite")
 
     def test_scaler_create_trick(self):
         self.maxDiff = None
@@ -98,11 +97,10 @@ class TestAOBackend(unittest.TestCase):
 
     def test_multiple_generators(self):
         self.maxDiff = None
-        expected_value = 'subtract([group_by("tag1",mean(s("metric1","*",{period:"1","function":"max"}))),group_by("tag1",mean(s("metric2","*",{period:"1","function":"min"})))])'
+        expected_value = 'group_by("tag1",subtract([mean(s("metric1","*",{period:"1","function":"max"})),mean(s("metric2","*",{period:"1","function":"min"}))]))'
         a = AOBackend(
-            x - y
-            for x, y in AOBackend((x.max for x in "metric1"), (x.min for x in "metric2")).by("tag1")
-        )
+            x - y for x, y in AOBackend((x.max for x in "metric1"), (x.min for x in "metric2"))
+        ).by("tag1")
         self.assertEqual(a.composite, expected_value)
 
     def test_multiple_functions(self):

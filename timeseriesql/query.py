@@ -2,8 +2,8 @@ import os
 import time
 import numbers
 from .timeseries import TimeSeries
-from .decompiler import Decompiler
 from .time import convert_string_to_seconds
+from .ast import AST
 
 
 class Plan:
@@ -170,20 +170,7 @@ class Query:
                 "vars": [{'name': 'x', 'labels': []}, {'name': 'y', 'labels': []}]
         }
         """
-        plans = []
-        for g in self.generators:
-            plan = Plan(
-                **{
-                    "calc": None,
-                    "group": self.groupings,
-                    "metrics": [],
-                    "filters": self.filters,
-                    "variables": [],
-                }
-            )
-            plans.append(Decompiler(g, plan).decompile())
-
-        return plans
+        return AST(self.generators, self.groupings).decompile()
 
     def by(self, labels, func="mean"):
         """Adds a group by step to the Query plan
