@@ -4,6 +4,19 @@ import types
 
 
 class Node:
+    """
+    A generic class for a tree Node.  
+
+    params
+    ------
+
+    left: any
+        the left node which will be evaluated before the right node
+    right: any
+        the right node evaluated after the left
+
+    """
+
     left = None
     right = None
 
@@ -12,109 +25,151 @@ class Node:
         self.right = right
 
     def pprint(self, level):
+        """ Pretty print for debugging purposes """
         nl = "\n"
         tabs = "\t" * level
         return f"{tabs}{self.__class__.__name__}:{nl}{self.left.pprint(level+1)},{nl}{self.right.pprint(level+1)}"
 
     def __eq__(self, v):
+        """ Override the eq so tests can compare all children nodes as well """
         if isinstance(self, type(v)):
             return self.left == v.left and self.right == v.right
         return False
 
     def __str__(self):
+        """ Pretty print instead of using string """
         return self.pprint(0)
 
 
-class Empty(Node):
-    def __init__(self):
-        self.left = None
-        self.right = None
-
-    def pprint(self, level):
-        tabs = "\t" * level
-        return f"{tabs}{self.__class__.__name__}:None, None"
-
-
 class Filter(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class Group(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class CompareEqual(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class CompareNotEqual(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class CompareIn(Node):
+    """ Used when a filter is used in the generator """
+
     pass
+
 
 class CompareNotIn(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
+
 class LoadAttr(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class Func(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class FuncCall(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class FuncArgs(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class BinaryModulo(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class BinaryPower(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class BinaryFloorDivide(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class BinaryTrueDivide(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class BinaryMatrixMultiply(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class BinaryMultiply(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class BinaryAdd(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class BinarySubtract(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
+
 class BinaryXOR(Node):
+    """ Used when a filter is used in the generator """
+
     pass
 
 
 class Value:
+    """ 
+    A generic value node.  Using this node indicated the bottom of tree
+
+    value: any
+        The value to be stored. 
+    """
+
     value = None
 
     def __init__(self, value):
         self.value = value
 
     def pprint(self, level):
+        """ pretty print for debugging """
         tabs = "\t" * level
         val = self.value
         if isinstance(self.value, list):
@@ -129,6 +184,7 @@ class Value:
         return f"{tabs}{self.__class__.__name__}: {val}"
 
     def __eq__(self, v):
+        """ Used to compare Value objects """
         if type(v) == type(self):
             return self.value == v.value
         return False
@@ -141,10 +197,29 @@ class Value:
 
 
 class Metric(Value):
+    """ A class that represents the metric with the metric name as the value """
+
     pass
 
 
 class AST:
+    """
+    A class to represent a generic abstract syntax to be consumed by a backend
+
+    gen: generator(s)
+        The generator(s) to be processed
+    group_by: list
+        A list of labels to group by
+    working_var: str
+        A temporary value to track which variable is currently "loaded"
+    variables: map of nodes
+        A map of nodes that represent the variables
+    current_gen: generator
+        The generator being processed
+    stack: list of nodes/values
+        The processing stack for the class
+    """
+
     def __init__(self, gen, group_by=None):
         self.gen = gen
         self.group_by = group_by
@@ -154,6 +229,7 @@ class AST:
         self.stack = []
 
     def decompile(self):
+        """ The decompile function """
         if not isinstance(self.gen, list):
             self.gen = [self.gen]
         for gen in self.gen:
@@ -161,7 +237,7 @@ class AST:
             bytecode = dis.Bytecode(gen)
             for instr in bytecode:
                 try:
-                    op = self.__getattribute__(instr.opname.lower())
+                    op = self.__getattribute__("_" + instr.opname.lower())
                     op(instr)
                 except Exception as e:
                     raise NotImplementedError(f"opname of {instr.opname} is not supported")
@@ -173,45 +249,45 @@ class AST:
 
     # op handlers
 
-    def binary_add(self, instr):
-        self.binary_op(BinaryAdd)
+    def _binary_add(self, instr):
+        self._binary_op(BinaryAdd)
 
-    def binary_floor_divide(self, instr):
-        self.binary_op(BinaryFloorDivide)
+    def _binary_floor_divide(self, instr):
+        self._binary_op(BinaryFloorDivide)
 
-    def binary_matrix_multiply(self, instr):
-        self.binary_op(BinaryMatrixMultiply)
+    def _binary_matrix_multiply(self, instr):
+        self._binary_op(BinaryMatrixMultiply)
 
-    def binary_multiply(self, instr):
-        self.binary_op(BinaryMultiply)
+    def _binary_multiply(self, instr):
+        self._binary_op(BinaryMultiply)
 
-    def binary_modulo(self, instr):
-        self.binary_op(BinaryModulo)
+    def _binary_modulo(self, instr):
+        self._binary_op(BinaryModulo)
 
-    def binary_power(self, instr):
-        self.binary_op(BinaryPower)
+    def _binary_power(self, instr):
+        self._binary_op(BinaryPower)
 
-    def binary_op(self, cl):
+    def _binary_op(self, cl):
         right = self.stack.pop()
         left = self.stack.pop()
         self.stack.append(cl(left, right))
 
-    def binary_subscr(self, instr):
+    def _binary_subscr(self, instr):
         index = self.stack.pop()
         target = self.stack.pop()
 
         self.stack.append(Value(target.value[index.value]))
 
-    def binary_subtract(self, instr):
-        self.binary_op(BinarySubtract)
+    def _binary_subtract(self, instr):
+        self._binary_op(BinarySubtract)
 
-    def binary_true_divide(self, instr):
-        self.binary_op(BinaryTrueDivide)
+    def _binary_true_divide(self, instr):
+        self._binary_op(BinaryTrueDivide)
 
-    def binary_xor(self, instr):
-        self.binary_op(BinaryXOR)
+    def _binary_xor(self, instr):
+        self._binary_op(BinaryXOR)
 
-    def call_function(self, instr):
+    def _call_function(self, instr):
         kwargs = {}
         args = []
         arg_count = instr.arg
@@ -226,57 +302,49 @@ class AST:
         func = FuncCall(name, FuncArgs(Value(args), Value(kwargs)))
         self.stack.append(func)
 
-    def call_function_kw(self, instr):
-        self.call_function(instr)
+    def _call_function_kw(self, instr):
+        self._call_function(instr)
 
-    def compare_op(self, instr):
-        ops = {"in": CompareIn, "==": CompareEqual, "!=": CompareNotEqual, 'not in': CompareNotIn}
+    def _compare_op(self, instr):
+        ops = {"in": CompareIn, "==": CompareEqual, "!=": CompareNotEqual, "not in": CompareNotIn}
         right = self.stack.pop()
         left = self.stack.pop()
         cl = ops[instr.argval](left.right, right)
         f = Filter(left.left, cl)
         self.stack.append(f)
 
-    def for_iter(self, instr):
+    def _for_iter(self, instr):
         from .query import Query
 
         stack_val = self.stack.pop()
         if type(stack_val.value) == type(iter("")):
             self.stack.append(Metric(["".join(stack_val.value)][0]))
-        elif isinstance(stack_val.value, collections.Iterable):
+        else:
             try:
                 for q in stack_val.value.generators:
-                    if isinstance(q, Query):
-                        a = AST(q, stack_val.value.groupings).decompile()
-                    elif isinstance(q, types.GeneratorType):
-                        a = AST(q).decompile()
-                    else:
-                        a = Value(q)
+                    a = AST(q).decompile()
                     self.stack.append(a)
                 if stack_val.value.groupings:
                     self.group_by = stack_val.value.groupings
             except:  # not a query object
                 for q in stack_val.value:
                     self.stack.append(Metric(q))
-        elif isinstance(stack_val, Query):
-            self.stack.append(AST(q, stack_val.groupings).decompile())
-        else:
-            raise TypeError(f"Unexpected type of iterable ({type(stack_val.value)}")
 
-    def jump_absolute(self, instr):
+
+    def _jump_absolute(self, instr):
         pass
 
-    def load_attr(self, instr):
+    def _load_attr(self, instr):
         self.stack.append(LoadAttr(self.stack.pop(), Value(instr.argval)))
 
-    def load_const(self, instr):
+    def _load_const(self, instr):
         if not instr.is_jump_target:
             self.stack.append(Value(instr.argval))
 
-    def load_deref(self, instr):
+    def _load_deref(self, instr):
         self.stack.append(Value(self.current_gen.gi_frame.f_locals.get(instr.argval, "unknown")))
 
-    def load_fast(self, instr):
+    def _load_fast(self, instr):
         if instr.argval.startswith("."):
             val = Value(self.current_gen.gi_frame.f_locals[instr.argval])
             self.stack.append(val)
@@ -285,25 +353,25 @@ class AST:
             self.working_var = instr.argval
             self.stack.append(self.variables[instr.argval])
 
-    def load_global(self, instr):
+    def _load_global(self, instr):
         self.stack.append(Value(instr.argval))
 
-    def pop_jump_if_false(self, instr):
+    def _pop_jump_if_false(self, instr):
         self.variables[self.working_var] = self.stack.pop()
         self.working_var = None
 
-    def pop_top(self, instr):
+    def _pop_top(self, instr):
         pass
 
-    def return_value(self, instr):
+    def _return_value(self, instr):
         pass
 
-    def store_fast(self, instr):
+    def _store_fast(self, instr):
         self.variables[instr.argval] = self.stack.pop(0)
 
-    def unpack_sequence(self, instr):
+    def _unpack_sequence(self, instr):
         pass
 
-    def yield_value(self, instr):
+    def _yield_value(self, instr):
         pass
 

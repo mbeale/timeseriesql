@@ -1,13 +1,17 @@
 import unittest
 from timeseriesql.ast import (
     AST,
-    Empty,
     Value,
     Filter,
     LoadAttr,
     CompareEqual,
     BinaryMultiply,
     BinarySubtract,
+    BinaryFloorDivide,
+    BinaryTrueDivide,
+    BinaryMatrixMultiply,
+    BinaryPower,
+    BinaryModulo,
     BinaryAdd,
     FuncCall,
     FuncArgs,
@@ -42,6 +46,36 @@ class TestAST(unittest.TestCase):
         actual = a.decompile()
         expected = BinaryMultiply(
             Filter(Metric("test"), CompareEqual(Value("label1"), Value("prod"))), Value(100)
+        )
+        self.assertEqual(actual, expected)
+        a = AST((x / 100 for x in "test" if x.label1 == "prod"))
+        actual = a.decompile()
+        expected = BinaryTrueDivide(
+            Filter(Metric("test"), CompareEqual(Value("label1"), Value("prod"))), Value(100)
+        )
+        self.assertEqual(actual, expected)
+        a = AST((x // 100 for x in "test" if x.label1 == "prod"))
+        actual = a.decompile()
+        expected = BinaryFloorDivide(
+            Filter(Metric("test"), CompareEqual(Value("label1"), Value("prod"))), Value(100)
+        )
+        self.assertEqual(actual, expected)
+        a = AST((x @ 100 for x in "test" if x.label1 == "prod"))
+        actual = a.decompile()
+        expected = BinaryMatrixMultiply(
+            Filter(Metric("test"), CompareEqual(Value("label1"), Value("prod"))), Value(100)
+        )
+        self.assertEqual(actual, expected)
+        a = AST((x % 100 for x in "test" if x.label1 == "prod"))
+        actual = a.decompile()
+        expected = BinaryModulo(
+            Filter(Metric("test"), CompareEqual(Value("label1"), Value("prod"))), Value(100)
+        )
+        self.assertEqual(actual, expected)
+        a = AST((x ** 2 for x in "test" if x.label1 == "prod"))
+        actual = a.decompile()
+        expected = BinaryPower(
+            Filter(Metric("test"), CompareEqual(Value("label1"), Value("prod"))), Value(2)
         )
         self.assertEqual(actual, expected)
 
@@ -147,3 +181,38 @@ class TestAST(unittest.TestCase):
         )
         self.assertEqual(actual, expected)
 
+    def test_node_equality(self):
+        self.assertEqual(
+            FuncArgs(Value([Metric("test")]), Value({"size": 5})),
+            FuncArgs(Value([Metric("test")]), Value({"size": 5})),
+        )
+        self.assertNotEqual(
+            FuncArgs(Value([Metric("test")]), Value({"size": 5})),
+            FuncArgs(Value([Metric("test")]), Value({"size": 10})),
+        )
+        self.assertFalse(FuncArgs(Value([Metric("test")]), Value({"size": 5})) == False)
+
+    def test_node_pprint(self):
+        node = FuncArgs(Value([Metric("test")]), Value({"size": 5}))
+        self.assertEqual(str(node), node.pprint(0))
+
+    def test_value_pprint(self):
+        l = [1, 2, 3, 4]
+        v = Value(l).pprint(0)
+        self.assertEqual("Value: [\n\t1,\n\t2,\n\t3,\n\t4,\n]", v)
+        self.assertEqual(str(Value(l)), v)
+
+    def test_value_equality(self):
+        self.assertEqual(Value(5), Value(5))
+        self.assertFalse(Value(5) == 5)
+
+    def test_value_repr(self):
+        v = Value(5)
+        self.assertEqual(repr(v), "Value<5>")
+
+    def test_query_for_iterator(self):
+        q = Query(x for x in Query(x for x in "test"))
+        a = AST(q.generators, q.groupings)
+        actual = a.decompile()
+        expected = Metric('test')
+        self.assertEqual(actual, expected)
