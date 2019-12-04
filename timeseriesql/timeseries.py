@@ -1,4 +1,5 @@
 import numpy as np
+import numbers
 from collections.abc import Sequence
 from .np_array import NumpyArray
 from .time import TimeIndex, convert_string_to_seconds
@@ -39,6 +40,8 @@ class TimeSeries:
             self.labels = [labels]
         else:
             self.labels = []
+        if time != []:
+            time = time[-self.data.shape[0]:]
         self._time = np.array(time, dtype=np.float64)
 
     def __truediv__(self, other):
@@ -610,6 +613,40 @@ class TimeSeries:
         collection.chunks = (TimeChunk(slice(i, i+size), slice(None, None, None)) for i in range(0, len(self)-size+1, stepsize))
         return collection
 
+    def fillnan(self, method):
+        """ Replace np.nan with a number, or foward/back fill """
+        if isinstance(method, str) and method in ['bfill', 'ffill']:
+            modifier = -1
+            if method == 'bfill':
+                modifier = 1
+            for i in range(self.data.shape[1]):
+                while True:
+                    idx = np.argwhere(np.isnan(self.data[:,i]))
+                    if len(idx) == 0:
+                        break
+                    row, col = idx[-1]
+                    col = i
+                    if 0 < (row + modifier) < len(self.data):
+                        self.data[row,col] = self.data[row+modifier,col]
+                    else:
+                        self.data[row,col] = 0
+        elif isinstance(method, numbers.Number):
+            self.data[np.isnan(self.data).astype(bool)] = method #need as bool because all values are floats
+        else:
+            raise ValueError("Method should be 'bfill','ffill', or a number")
+
+
+    def bfill(self):
+        """ Back fill np.nan """
+        return self.fillnan('bfill')
+
+    def ffill(self):
+        """ Forward fill np.nan """
+        return self.fillnan('ffill')
+
+    def fill(self, value):
+        """ fill with a number np.nan """
+        return self.fillnan(value)
 
     def copy(self):
         """Override the copy method to include the labels

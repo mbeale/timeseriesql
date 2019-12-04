@@ -468,3 +468,78 @@ class TestTimeSeries(unittest.TestCase):
         out_of_bounds_date = np.datetime64(int(t1.time[0] - 86400), "s")
         new_t = t1[out_of_bounds_date:np.timedelta64(3, "m")]
         self.assertEqual(len(new_t), 0)
+
+    def test_pca_calc(self):
+        from numpy.linalg import eig
+
+        new_t = TimeSeries(shape=(10,2), time=range(10))
+        new_t[:,0] = [2.5,0.5,2.2,1.9,3.1,2.3,2.0,1.0,1.5,1.1]
+        new_t[:,1] = [2.4,0.7,2.9,2.2,3.0,2.7,1.6,1.1,1.6,0.9]
+
+        standard_scalar = (new_t - new_t.mean(axis=0)) / new_t.std(axis=0)
+        cov_matrix = (standard_scalar.T @ standard_scalar) / len(standard_scalar)
+        expected_cov_matrix = np.array([[1.,0.92592927],[0.92592927, 1.]])
+        for r in range(len(cov_matrix)):
+            for c in range(2):
+                self.assertAlmostEqual(cov_matrix[r,c], expected_cov_matrix[r,c])
+        values, vectors = eig(cov_matrix)
+        #sort eigenvectors,eigenvalues
+        idx = np.argsort(values)[::-1]
+        vectors = vectors[:, idx]
+        values = values[idx]
+
+        pca = vectors.T @ standard_scalar.T
+        expected_pca = np.array([[-1.08643242, -0.22352364],[ 2.3089372 ,  0.17808082],[-1.24191895,  0.501509  ],[-0.34078247,  0.16991864],[-2.18429003, -0.26475825],[-1.16073946,  0.23048082],[ 0.09260467, -0.45331721],[ 1.48210777,  0.05566672],[ 0.56722643,  0.02130455],[ 1.56328726, -0.21536146]])
+        for r in range(len(pca.T)):
+            for c in range(2):
+                self.assertAlmostEqual(pca.T[r,c], expected_pca[r,c])
+
+    def test_ts_differencing(self):
+        t1, t2, t3 = self.basic_timeseries
+
+        diff = t1.diff(axis=0)
+        self.assertTrue(np.array_equal(diff.time, t1.time[1:]))
+        self.assertTrue(np.array_equal(diff.data, np.ones(diff.shape)))
+        self.assertTrue(np.array_equal(diff.labels, t1.labels))
+
+        #test multiple streams
+        new_t = t1.merge([t2,t3])
+        diff = new_t.diff(axis=0)
+        self.assertEqual(diff.shape, (9,3))
+        self.assertTrue(np.array_equal(diff.time, t1.time[1:]))
+        self.assertTrue(np.array_equal(diff.data, np.ones(diff.shape)))
+        self.assertTrue(np.array_equal(diff.labels, new_t.labels))
+
+    def test_fill(self):
+        t1, t2, t3 = self.basic_timeseries
+        combined = t1.merge([t2,t3])
+
+        bfill = t1.copy()
+        bfill[1::2,0] = np.nan
+        bfill.bfill()
+        self.assertTrue(np.array_equal(bfill[:,0], np.array([0,2,2,4,4,6,6,8,8,0]).reshape((10,1))))
+        ffill = t1.copy()
+        ffill[1::2,0] = np.nan
+        ffill.ffill()
+        self.assertTrue(np.array_equal(ffill[:,0], np.array([0,0,2,2,4,4,6,6,8,8]).reshape((10,1))))
+        vfill = t1.copy()
+        vfill[1::2,0] = np.nan
+        vfill.fill(10)
+        self.assertTrue(np.array_equal(vfill[:,0], np.array([0,10,2,10,4,10,6,10,8,10]).reshape((10,1))))
+
+        c1 = combined.copy()
+        c1[0::2,0::2] = np.nan
+        c1.ffill()
+        self.assertTrue(np.array_equal(c1.data, np.array([[0., 0., 0.],
+            [1., 1., 1.],
+            [1., 2., 1.],
+            [3., 3., 3.],
+            [3., 4., 3.],
+            [5., 5., 5.],
+            [5., 6., 5.],
+            [7., 7., 7.],
+            [7., 8., 7.],
+            [9., 9., 9.]])))
+
+
+
