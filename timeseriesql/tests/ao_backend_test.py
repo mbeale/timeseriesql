@@ -129,3 +129,16 @@ class TestAOBackend(unittest.TestCase):
         # measurements loaded
         self.assertEqual(len(data), 358)
         self.assertEqual(data[-1][0], 549.56976923)
+
+    @mock.patch("timeseriesql.backends.ao_backend.requests.get", side_effect=mocked_requests_get)
+    def test_raw_composite(self, mock_requests):
+        composite = 's("metric1")'
+
+        a = AOBackend(composite)
+        self.assertEqual(a.composite, composite)
+
+        data = AOBackend(composite)[:]
+        # measurements loaded
+        self.assertEqual(len(data), 358)
+        self.assertEqual(data[-1][0], 549.56976923)
+

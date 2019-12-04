@@ -215,6 +215,11 @@ data = AOBackend(sum(derive(x)) for x in "metric.name")[3600:] #get the sums of 
 data = AOBackend(zero_fill(x) for x in "metric.name")[3600::60] #zero_fill
 ```
 
+#### AppOptics Raw Composite
+```python
+data = AOBackend('s("some_metric")')[3600:]
+```
+
 ### TimeSeries Usage
 
 The `TimeSeries` object is allows for manipulation of the time series data after the it's been queried from the 

@@ -69,6 +69,12 @@ class AOBackend(Query):
 
     BASE_URL = "https://api.appoptics.com/v1/"
     API_TOKEN = os.environ.get("APPOPTICS_TOKEN", "")
+    COMPOSITE_DEF = None
+
+    def __init__(self, *args):
+        if len(args) == 1 and isinstance(args[0], str):
+            self.COMPOSITE_DEF = args[0]
+        super(AOBackend, self).__init__(*args)
 
     @classmethod
     def get(cls, endpoint, params):
@@ -93,6 +99,8 @@ class AOBackend(Query):
 
     @property
     def composite(self):
+        if self.COMPOSITE_DEF:
+            return self.COMPOSITE_DEF
         now = int(time.time())
         plan = self._generate_plan()
         return self.create_query(plan, {"start_time": now - 3600, "end_time": now, "resolution": 1})
@@ -173,10 +181,10 @@ class AOBackend(Query):
         labels = '"' + ",".join(right[0]) + '"'
         if isinstance(left, str):
             sets = []
-            for m in re.finditer('s\(([^)]+)\)', left):
+            for m in re.finditer("s\(([^)]+)\)", left):
                 sets.append((m.start(), m.end()))
             for s in reversed(sets):
-                left = left[0:s[0]] + f"mean({left[s[0]:s[1]]})" + left[s[1]:]
+                left = left[0 : s[0]] + f"mean({left[s[0]:s[1]]})" + left[s[1] :]
         return f"group_by({labels},{left})"
 
     def loadattr(self, left, right, period):
@@ -214,8 +222,11 @@ class AOBackend(Query):
     def execute_plan(self):
         """Execute the plan and return a TimeSeries object for any further processing or displaying"""
         params = self._process_period()
-        plan = self._generate_plan()
-        params["compose"] = self.create_query(plan, params)
+        if self.COMPOSITE_DEF:
+            params["compose"] = self.COMPOSITE_DEF
+        else:
+            plan = self._generate_plan()
+            params["compose"] = self.create_query(plan, params)
         series = self.get("measurements", params)
         timeseries = None
         for stream in series.json()["series"]:
@@ -230,4 +241,3 @@ class AOBackend(Query):
             else:
                 timeseries = t.copy()
         return timeseries
-
