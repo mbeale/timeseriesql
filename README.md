@@ -58,7 +58,6 @@ platforms.  The goal of this project is to create a time series specific library
 ### Built With
 
 * [Numpy](https://numpy.org)
-* [Pandas](https://pandas.pydata.org)
 
 
 
@@ -136,7 +135,7 @@ data = CSVBackend(x for x in "path/to.csv")[:]
 For CSV files the labels are the column headers.  If there are columns that are not needed, they can be filtered out.
 
 ```python
-from timeseriesql.backends import CSVBackend
+from timeseriesql.backends.csv_backend import CSVBackend
 
 data = CSVBackend(x for x in "path/to.csv" if x.label == "A")[:]
 data = CSVBackend(x for x in "path/to.csv" if x.label != "B")[:]
@@ -147,7 +146,7 @@ data = CSVBackend(x for x in "path/to.csv" if x.label not in ["B", "C", "G"])[:]
 #### Set the Labels
 
 ```python
-from timeseriesql.backends import CSVBackend
+from timeseriesql.backends.csv_backend import CSVBackend
 
 data = CSVBackend(x for x in "path/to.csv").labels(
     [
@@ -172,7 +171,7 @@ The backend expects a ``APPOPTICS_TOKEN`` environment variable to be set in orde
 #### AppOptics Query
 
 ```python
-from timeseriesql.backends import AOBackend
+from timeseriesql.backends.ao_backend import AOBackend
 
 data = AOBackend(x for x in "metric.name")['1h'] #basic
 data = AOBackend(x * 100 for x in "metric.name")['1h'] #binary operations (+, -, /, *)
@@ -185,7 +184,7 @@ data = AOBackend(x.max for x in "metric.name")[3600:] #get max value
 Currently only ``==`` and ``!=`` are supported.
 
 ```python
-from timeseriesql.backends import AOBackend
+from timeseriesql.backends.ao_backend import AOBackend
 
 data = AOBackend(x for x in "metric.name" if x.environment == 'production')[3600:]
 ```
@@ -193,7 +192,7 @@ data = AOBackend(x for x in "metric.name" if x.environment == 'production')[3600
 #### AppOptics Grouping
 
 ```python
-from timeseriesql.backends import AOBackend
+from timeseriesql.backends.ao_backend import AOBackend
 
 data = AOBackend(x for x in "metric.name").group('environment')[3600:]
 data = AOBackend(x - y for x,y in AOBackend((x.max for x in "metric1"), (x.min for x in "metric2")).by('tag1'))[3600:]
@@ -201,7 +200,7 @@ data = AOBackend(x - y for x,y in AOBackend((x.max for x in "metric1"), (x.min f
 
 #### AppOptics Time
 ```python
-from timeseriesql.backends import AOBackend
+from timeseriesql.backends.ao_backend import AOBackend
 
 data = AOBackend(x for x in "metric.name")[:] #no start or end time (not recommended)
 data = AOBackend(x for x in "metric.name")[3600:] #from now - 3600 seconds until now, resolution of 1
