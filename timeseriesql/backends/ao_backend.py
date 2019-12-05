@@ -59,7 +59,8 @@ class CompositeDefinition:
             filters = "{"
             quote = '"'
             for x in self.filter:
-                filters += f"{quote}{x['name']}{quote}:{quote}{x['value']}{quote}"
+                val = x['value'] if x['op'] == "==" else "!" + x['value'] 
+                filters += f"{quote}{x['name']}{quote}:{quote}{val}{quote}"
             filters += "}"
         return f's("{self.name}",{filters},{{period:"{self.resolution}","function":"{self.sum_func}"}})'
 
@@ -133,6 +134,9 @@ class AOBackend(Query):
 
     def compareequal(self, left, right, period):
         return {"name": left, "value": right, "op": "=="}
+
+    def comparenotequal(self, left, right, period):
+        return {"name": left, "value": right, "op": "!="}
 
     def filter(self, left, right, period):
         left.filter.append(right)

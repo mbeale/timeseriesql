@@ -182,7 +182,7 @@ data = AOBackend(x.max for x in "metric.name")[3600:] #get max value
 
 #### AppOptics Filtering
 
-Currently only ``==`` is supported.
+Currently only ``==`` and ``!=`` are supported.
 
 ```python
 from timeseriesql.backends import AOBackend
@@ -217,7 +217,7 @@ data = AOBackend(zero_fill(x) for x in "metric.name")[3600::60] #zero_fill
 
 #### AppOptics Raw Composite
 ```python
-data = AOBackend('s("some_metric")')[3600:]
+data = AOBackend('s("some_metric", "*")')[3600:]
 ```
 
 ### TimeSeries Usage

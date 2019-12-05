@@ -41,6 +41,9 @@ class TestAOBackend(unittest.TestCase):
         a = AOBackend(x for x in "test" if x.label1 == "prod")
         self.assertEqual(a.composite, 's("test",{"label1":"prod"},{period:"1","function":"mean"})')
 
+        a = AOBackend(x for x in "test" if x.label1 != "prod")
+        self.assertEqual(a.composite, 's("test",{"label1":"!prod"},{period:"1","function":"mean"})')
+
         a = AOBackend(x for x in "test" if x.label1 in ["prod", "prod2"])
         self.assertRaises(NotImplementedError, getattr, a, "composite")
 
@@ -132,7 +135,7 @@ class TestAOBackend(unittest.TestCase):
 
     @mock.patch("timeseriesql.backends.ao_backend.requests.get", side_effect=mocked_requests_get)
     def test_raw_composite(self, mock_requests):
-        composite = 's("metric1")'
+        composite = 's("some_metric", "*")'
 
         a = AOBackend(composite)
         self.assertEqual(a.composite, composite)
