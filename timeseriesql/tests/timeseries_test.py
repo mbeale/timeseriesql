@@ -268,8 +268,6 @@ class TestTimeSeries(unittest.TestCase):
             np.array_equal(new_t.filter({"hostname": "does_not_exist"}), TimeSeries(shape=(0, 3)).data)
         )
 
-
-
     def test_index_by_datetime(self):
 
         t1, t2, t3 = self.basic_timeseries

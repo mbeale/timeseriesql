@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="timeseriesql",
-    version="0.1.2",
+    version="0.1.3",
     description="A Pythonic query language for time series data",
     long_description=long_description,
     long_description_content_type="text/markdown",
