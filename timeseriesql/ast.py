@@ -354,7 +354,7 @@ class AST:
             self.stack.append(self.variables[instr.argval])
 
     def _load_global(self, instr):
-        self.stack.append(Value(instr.argval))
+        self.stack.append(Value(self.current_gen.gi_frame.f_globals.get(instr.argval, instr.argval)))
 
     def _pop_jump_if_false(self, instr):
         self.variables[self.working_var] = self.stack.pop()

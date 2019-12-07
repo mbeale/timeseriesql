@@ -100,11 +100,12 @@ class AOBackend(Query):
 
     @property
     def composite(self):
-        if self.COMPOSITE_DEF:
-            return self.COMPOSITE_DEF
-        now = int(time.time())
-        plan = self._generate_plan()
-        return self.create_query(plan, {"start_time": now - 3600, "end_time": now, "resolution": 1})
+        if not self.COMPOSITE_DEF:
+            now = int(time.time())
+            plan = self._generate_plan()
+            self.COMPOSITE_DEF =  self.create_query(plan, {"start_time": now - 3600, "end_time": now, "resolution": 1})
+        return self.COMPOSITE_DEF
+        
 
     #  AST Class handling
 
@@ -230,7 +231,8 @@ class AOBackend(Query):
             params["compose"] = self.COMPOSITE_DEF
         else:
             plan = self._generate_plan()
-            params["compose"] = self.create_query(plan, params)
+            self.COMPOSITE_DEF = self.create_query(plan, params)
+            params["compose"] = self.COMPOSITE_DEF
         series = self.get("measurements", params)
         timeseries = None
         for stream in series.json()["series"]:

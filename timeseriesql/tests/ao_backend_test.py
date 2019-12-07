@@ -128,7 +128,7 @@ class TestAOBackend(unittest.TestCase):
         self.assertEqual(a.composite, expected_result)
 
     @mock.patch("timeseriesql.backends.ao_backend.requests.get", side_effect=mocked_requests_get)
-    def test_end_to_end(self, mock_requests):
+    def test_end_to_end_with_mock(self, mock_requests):
         data = AOBackend(x for x in "test")[:]
 
         # test the labels
