@@ -63,6 +63,11 @@ class TestAOBackend(unittest.TestCase):
         a = AOBackend(x * 100 for x in "test" if x.label1 == "prod").by(["label1"])
         self.assertEqual(a.composite, expected_value)
 
+        expected_value = 'group_by("label1,label2,label3",multiply([mean(s("test",{"label1":"prod"},{period:"1","function":"mean"})),scale(divide([mean(s("test",{"label1":"prod"},{period:"1","function":"mean"})),mean(s("test",{"label1":"prod"},{period:"1","function":"mean"}))]),{"factor":"100"})]))'
+
+        a = AOBackend(x * 100 for x in "test" if x.label1 == "prod").by(["label1", "label2","label3"])
+        self.assertEqual(a.composite, expected_value)
+
     def test_composite_func(self):
 
         a = AOBackend(mean(x) for x in "test")

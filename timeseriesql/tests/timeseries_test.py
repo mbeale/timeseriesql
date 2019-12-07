@@ -259,11 +259,16 @@ class TestTimeSeries(unittest.TestCase):
             np.array_equal(new_t[{"hostname": ["host2", "host3"]}], new_t[:, [1, 2]])
         )
         self.assertTrue(
+            np.array_equal(new_t[{"hostname": ["host2", "host3"]}].labels[0], t2.labels[0])
+        )
+        self.assertTrue(
             np.array_equal(new_t[{"hostname": "does_not_exist"}], TimeSeries(shape=(0, 3)).data)
         )
         self.assertTrue(
             np.array_equal(new_t.filter({"hostname": "does_not_exist"}), TimeSeries(shape=(0, 3)).data)
         )
+
+
 
     def test_index_by_datetime(self):
 

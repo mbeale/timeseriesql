@@ -388,6 +388,7 @@ class TimeSeries:
 
     def wrap_new_data(self, out_arr, time=None, ndx=None):
         """ Wrap a value returned from a ufunc in a TimeSeries object """
+        print(ndx)  
         if not isinstance(out_arr, np.ndarray) or not out_arr.shape:
             return out_arr
         if time is None:
@@ -403,8 +404,12 @@ class TimeSeries:
             out_arr = out_arr.reshape((rows, columns))
             new_to = TimeSeries(shape=(rows, columns), time=time, labels=self.labels)
             new_to.data[:] = out_arr
-            if ndx and len(ndx) > 1 and isinstance(ndx[1], (slice, int)):
-                labels = self.labels[ndx[1]]
+            if ndx and len(ndx) > 1 and isinstance(ndx[1], (slice, int, list)):
+                if isinstance(ndx[1], list):
+                    labels = [self.labels[x] for x in ndx[1]]
+                    print(labels)
+                else:
+                    labels = self.labels[ndx[1]]
                 if not isinstance(labels, list):
                     labels = [labels]
                 new_to.labels = labels
