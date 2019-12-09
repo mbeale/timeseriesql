@@ -205,7 +205,7 @@ class TimeSeries:
             if attr_name in dir(self.data):
                 return getattr(self.data, attr_name)(*args, **kwargs)
             if attr_name in dir(np) and callable(getattr(np, attr_name)):
-                return getattr(np, attr_name)(self.data, *args, **kwargs)
+                return getattr(np, attr_name)(self, *args, **kwargs)
             else:
                 raise AttributeError
 
@@ -342,7 +342,7 @@ class TimeSeries:
                 label_mask.append(1)
                 next_i += 1
             else:
-                for i in range(next_i,m):
+                for _ in range(next_i,m):
                     label_mask.append(0)
                 label_mask.append(1)
                 next_i = m + 1
@@ -584,7 +584,7 @@ class TimeSeries:
         collection.parent = self
         collection.collapse_index = True
         columns = [x for x in range(0,self.data.shape[1])]
-        collection.chunks = (TimeChunk(slice(*self._get_slice_by_datetime(np.datetime64(int(t), "s"), np.timedelta64(period, "s"))), columns) for t in range(int(self.time[0]), int(self.time[-1]), period))
+        collection.chunks = (TimeChunk(slice(*self._get_slice_by_datetime(np.datetime64(int(t), "s"), np.timedelta64(period, "s"))), columns) for t in range(int(self.time[0]), int(self.time[-1]), period)) # pylint: disable-msg=too-many-function-args
         return collection
 
     def to_pandas(self):
@@ -650,6 +650,16 @@ class TimeSeries:
     def fill(self, value):
         """ fill with a number np.nan """
         return self.fillnan(value)
+
+    def diff(self, *args, **kwargs):
+        """ Find the n difference for rows """
+        if 'axis' not in kwargs:
+            kwargs['axis'] = 0
+        data = np.diff(self, *args, **kwargs)
+        new_t = TimeSeries(shape=data.shape, time=self.time[-data.shape[0]:])
+        new_t.labels = self.labels
+        new_t[:] = data
+        return new_t
 
     def copy(self):
         """Override the copy method to include the labels

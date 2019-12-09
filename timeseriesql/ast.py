@@ -239,7 +239,7 @@ class AST:
                 try:
                     op = self.__getattribute__("_" + instr.opname.lower())
                     op(instr)
-                except Exception as e:
+                except:
                     raise NotImplementedError(f"opname of {instr.opname} is not supported")
             rtn = self.stack.pop()
             if self.group_by:

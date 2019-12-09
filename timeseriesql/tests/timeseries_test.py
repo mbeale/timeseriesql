@@ -272,12 +272,12 @@ class TestTimeSeries(unittest.TestCase):
 
         t1, t2, t3 = self.basic_timeseries
         new_t = t1.merge([t2, t3])
-        beg = np.datetime64(
+        beg = np.datetime64( # pylint: disable-msg=too-many-function-args
             int(self.timeindex[2]), "s"
-        )  # pylint: disable-msg=too-many-function-args
-        end = np.datetime64(
+        )  
+        end = np.datetime64( # pylint: disable-msg=too-many-function-args
             int(self.timeindex[5]), "s"
-        )  # pylint: disable-msg=too-many-function-args
+        )  
 
         # datetime range
         self.assertTrue(np.array_equal(new_t[beg:end], new_t[2:5]))
@@ -447,29 +447,31 @@ class TestTimeSeries(unittest.TestCase):
         t3 *= 3
         self.assertTrue(np.array_equal(t3.data, mul_result))
 
+        self.assertTrue(np.array_equal(t3.time, ts.time))
+
     def test_ufunc_attached(self):
-        t1, t2, t3 = self.basic_timeseries
+        t1, t2, _ = self.basic_timeseries
         t1 *= -1
         new_t = t1.fabs()
         self.assertTrue(np.array_equal(t2.data, new_t.data))
 
     def test_invalid_attribute(self):
-        t1, t2, t3 = self.basic_timeseries
+        t1, _, _ = self.basic_timeseries
         self.assertRaises(AttributeError, t1.invalid_name_xxx)
 
     def test_invalid_index(self):
-        t1, t2, t3 = self.basic_timeseries
+        t1, _, _ = self.basic_timeseries
 
         # out of bounds index
         self.assertRaises(IndexError, t1.__getitem__, 2300)
 
         # out of bounds date index
-        out_of_bounds_date = np.datetime64(int(t1.time[-1] + 86400), "s")
+        out_of_bounds_date = np.datetime64(int(t1.time[-1] + 86400), "s") # pylint: disable-msg=too-many-function-args
         self.assertRaises(IndexError, t1.__getitem__, out_of_bounds_date)
 
         # out of bounds stop date index
-        out_of_bounds_date = np.datetime64(int(t1.time[0] - 86400), "s")
-        new_t = t1[out_of_bounds_date:np.timedelta64(3, "m")]
+        out_of_bounds_date = np.datetime64(int(t1.time[0] - 86400), "s") # pylint: disable-msg=too-many-function-args
+        new_t = t1[out_of_bounds_date:np.timedelta64(3, "m")] # pylint: disable-msg=too-many-function-args
         self.assertEqual(len(new_t), 0)
 
     def test_pca_calc(self):
@@ -544,5 +546,9 @@ class TestTimeSeries(unittest.TestCase):
             [7., 8., 7.],
             [9., 9., 9.]])))
 
-
-
+    def test_nan_processing(self):
+        t1, t2, t3 = self.basic_timeseries
+        combined = t1.merge([t2,t3])
+        combined[1::2,0] = np.nan
+        self.assertEqual(4.4, np.nanmean(combined))
+        self.assertEqual(combined.nanmean(), np.nanmean(combined))
