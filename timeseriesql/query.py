@@ -6,16 +6,6 @@ from .time import convert_string_to_seconds
 from .ast import AST
 
 
-class Plan:
-    """A basic class that holds the Plan execution details"""
-
-    __slots__ = ["calc", "group", "metrics", "filters", "variables"]
-
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-
 class Query:
     """
     A query class that generates an execution plan. This class can be 
@@ -124,8 +114,7 @@ class Query:
         elif isinstance(self.period, str):
             try:
                 start_offset = convert_string_to_seconds(self.period)
-            except Exception as e:
-                print(e)
+            except:
                 self._raise_period_index_error()
         else:
             self._raise_period_index_error()
@@ -196,3 +185,27 @@ class Query:
     def fetch(self):
         """Fetch all items.  This can be overridden with sane defaults"""
         return self[:]
+
+    def range(self, start, end=None, resolution=None):
+        """ 
+        Fetch points by a specified time range 
+        
+        Params:
+        -------
+        start: int
+            A unixtimestamp for the start
+        end: int
+            A unixtimestamp for the end
+        resolution: int
+            A int for the resolution
+
+        Returns
+        -------
+        TimeSeries
+        """
+        now = int(time.time())
+        end_offset = None if end == None else end - start
+        res = self.DEFAULT_RESOLUTION if resolution is None else resolution
+
+        s = slice(now - start, end_offset, res)
+        return self[s]

@@ -3,7 +3,7 @@ import requests
 import numbers
 import time
 import re
-from timeseriesql.query import Query, Plan
+from timeseriesql.query import Query
 from timeseriesql.timeseries import TimeSeries
 from timeseriesql.ast import Metric, Value
 
@@ -16,16 +16,26 @@ def create_scalar_time_series(series, scalar):
     return f'scale(divide([{series},{series}]),{{"factor":"{scalar}"}})'
 
 
+def power_time_series(series, scalar):
+    """ Multiply a series by itself X times where X is a scalar """
+    s = str(series)
+    return f"multiply([{','.join([s for _ in range(scalar)])}])"
+
+def modulo_time_series(series, scalar):
+    """ Get the modulo of series.  num - divisor * floor(num / divisor)) """
+    scalar_series = create_scalar_time_series(series,scalar)
+    return f"subtract([{series},multiply([{scalar_series},floor(divide([{series},{scalar_series}]))])])"
+
 def binary_operation(left, right, optype):
     """ Handle binary operations """
     op_handlers = {
         "BINARY_MULTIPLY": "multiply",
         "BINARY_SUBTRACT": "subtract",
-        "BINARY_POWER": None,  # multiply query by itself x times, only useful with scalars
+        "BINARY_POWER": "power",
         "BINARY_TRUE_DIVIDE": "divide",
         "BINARY_FLOOR_DIVIDE": "divide",
         "BINARY_MATRIX_MULTIPLY": "multiply",
-        "BINARY_MODULO": None,  # num - divisor * floor(num / divisor))
+        "BINARY_MODULO": "modulo",
         "BINARY_ADD": "sum",
     }
 
@@ -34,14 +44,24 @@ def binary_operation(left, right, optype):
 
     opcode = op_handlers.get(optype, None)
     if opcode:
-        if is_left_scalar:
-            return f"{opcode}([{create_scalar_time_series(right, left)}, {right}])"
-        elif is_right_scalar:
-            return f"{opcode}([{left},{create_scalar_time_series(left, right)}])"
+        if opcode in ["power", "modulo"]:
+            op_func = power_time_series
+            if opcode == 'modulo':
+                op_func = modulo_time_series
+            if is_left_scalar:
+                return op_func(right, left)
+            elif is_right_scalar:
+                return op_func(left, right)
+            else:
+                return ValueError(f"There was not a scalar present for the {opcode} operation")
         else:
-            return f"{opcode}([{left},{right}])"
-    else:
-        raise TypeError(f"{optype} is not a supported operation")
+            if is_left_scalar:
+                return f"{opcode}([{create_scalar_time_series(right, left)}, {right}])"
+            elif is_right_scalar:
+                return f"{opcode}([{left},{create_scalar_time_series(left, right)}])"
+            else:
+                return f"{opcode}([{left},{right}])"
+    raise TypeError(f"{optype} is not a supported operation")
 
 
 class CompositeDefinition:
@@ -59,7 +79,7 @@ class CompositeDefinition:
             filters = "{"
             quote = '"'
             for x in self.filter:
-                val = x['value'] if x['op'] == "==" else "!" + x['value'] 
+                val = x["value"] if x["op"] == "==" else "!" + x["value"]
                 filters += f"{quote}{x['name']}{quote}:{quote}{val}{quote}"
             filters += "}"
         return f's("{self.name}",{filters},{{period:"{self.resolution}","function":"{self.sum_func}"}})'
@@ -103,9 +123,10 @@ class AOBackend(Query):
         if not self.COMPOSITE_DEF:
             now = int(time.time())
             plan = self._generate_plan()
-            self.COMPOSITE_DEF =  self.create_query(plan, {"start_time": now - 3600, "end_time": now, "resolution": 1})
+            self.COMPOSITE_DEF = self.create_query(
+                plan, {"start_time": now - 3600, "end_time": now, "resolution": 1}
+            )
         return self.COMPOSITE_DEF
-        
 
     #  AST Class handling
 
@@ -176,6 +197,8 @@ class AOBackend(Query):
             "window",
             "zero_fill",
         ]
+        if callable(left):
+            left = left.__name__
         if left not in valid_func_names:
             raise NotImplementedError(f"{left} is not a valid function")
         return f"{left}({right})"

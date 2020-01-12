@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
-from timeseriesql.query import Query, Plan
+import time
+from timeseriesql.query import Query
 
 
 class TestQuery(unittest.TestCase):
@@ -29,8 +30,25 @@ class TestQuery(unittest.TestCase):
         )
         t5 = Query(x.mean for x in "test")["1h"]
 
+        now = int(time.time())
+        t6 = Query(x.mean for x in "test").range(start=now - 3600, end=now - 1800, resolution=1)
+
         self.assertTrue(np.array_equal(t1.time, t1_timeindex))
         self.assertTrue(np.array_equal(t2.time, t2_timeindex))
         self.assertTrue(np.array_equal(t3.time, t3_timeindex))
         self.assertTrue(np.array_equal(t4.time, t4_timeindex))
         self.assertTrue(np.array_equal(t5.time, t1_timeindex))
+        self.assertTrue(np.array_equal(t6.time, t2_timeindex))
+
+        with self.assertRaises(IndexError):
+            Query(x.mean for x in "test")["1hkbkgvk"]
+
+        with self.assertRaises(IndexError):
+            Query(x.mean for x in "test")[1.04884]
+
+    def test_iteration(self):
+        i = 0
+        q = Query(x.mean for x in "test")
+        for i, _ in enumerate(q):
+            pass
+        self.assertEqual(0, i)

@@ -5,7 +5,7 @@ Not in any particular order
 ## General
 
 * benchmarking
-* 100 % coverage (95% today)
+* 100 % coverage (97% today)
 * circleci and testing against multiple python versions
 * speed improvements (numba, weld)
 * Events/Annotations

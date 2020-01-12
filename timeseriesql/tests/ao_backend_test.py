@@ -3,7 +3,6 @@ import time
 import json
 from unittest import mock
 from timeseriesql.backends.ao_backend import AOBackend, create_scalar_time_series
-from timeseriesql.query import Plan
 
 
 def mocked_requests_get(*args, **kwargs):
@@ -57,6 +56,22 @@ class TestAOBackend(unittest.TestCase):
             'multiply([s("test",{"label1":"prod"},{period:"1","function":"mean"}),scale(divide([s("test",{"label1":"prod"},{period:"1","function":"mean"}),s("test",{"label1":"prod"},{period:"1","function":"mean"})]),{"factor":"100"})])',
         )
 
+    def test_power_operation(self):
+        a = AOBackend(x ** 3 for x in "test" if x.label1 == "prod")
+        self.assertEqual(
+            a.composite,
+            'multiply([s("test",{"label1":"prod"},{period:"1","function":"mean"}),s("test",{"label1":"prod"},{period:"1","function":"mean"}),s("test",{"label1":"prod"},{period:"1","function":"mean"})])',
+        )
+
+    def test_modulo_operation(self):
+        a = AOBackend(x % 3 for x in "test" if x.label1 == "prod")
+        series = 's("test",{"label1":"prod"},{period:"1","function":"mean"})'
+        divisor = f'scale(divide([{series},{series}]),{{"factor":"3"}})'
+        self.assertEqual(
+            a.composite,
+            f"subtract([{series},multiply([{divisor},floor(divide([{series},{divisor}]))])])",
+        )
+
     def test_group_by(self):
         expected_value = 'group_by("label1",multiply([mean(s("test",{"label1":"prod"},{period:"1","function":"mean"})),scale(divide([mean(s("test",{"label1":"prod"},{period:"1","function":"mean"})),mean(s("test",{"label1":"prod"},{period:"1","function":"mean"}))]),{"factor":"100"})]))'
 
@@ -65,7 +80,9 @@ class TestAOBackend(unittest.TestCase):
 
         expected_value = 'group_by("label1,label2,label3",multiply([mean(s("test",{"label1":"prod"},{period:"1","function":"mean"})),scale(divide([mean(s("test",{"label1":"prod"},{period:"1","function":"mean"})),mean(s("test",{"label1":"prod"},{period:"1","function":"mean"}))]),{"factor":"100"})]))'
 
-        a = AOBackend(x * 100 for x in "test" if x.label1 == "prod").by(["label1", "label2","label3"])
+        a = AOBackend(x * 100 for x in "test" if x.label1 == "prod").by(
+            ["label1", "label2", "label3"]
+        )
         self.assertEqual(a.composite, expected_value)
 
     def test_composite_func(self):
@@ -102,6 +119,11 @@ class TestAOBackend(unittest.TestCase):
 
         actual_result = create_scalar_time_series(series, 100)
         self.assertEqual(actual_result, expected_result)
+
+    def test_sum_of_sums(self):
+        expected_value = 'sum(s("metric1","*",{period:"1","function":"sum"}))'
+        a = AOBackend(sum(x.sum) for x in "metric1")
+        self.assertEqual(a.composite, expected_value)
 
     def test_multiple_generators(self):
         self.maxDiff = None
