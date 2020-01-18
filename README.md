@@ -257,7 +257,7 @@ data, labels = ts_1.to_pandas()
 
 ### Available
 
-* [matplotlib](https://github.com/mbeale/tiemseriesql-matplotlib)
+* [matplotlib](https://github.com/mbeale/timeseriesql-matplotlib)
 
 ### Creating a custom backend
 
