@@ -52,3 +52,6 @@ class TestQuery(unittest.TestCase):
         for i, _ in enumerate(q):
             pass
         self.assertEqual(0, i)
+
+if __name__ == '__main__':
+    unittest.main()

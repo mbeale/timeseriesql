@@ -552,3 +552,6 @@ class TestTimeSeries(unittest.TestCase):
         combined[1::2,0] = np.nan
         self.assertEqual(4.4, np.nanmean(combined))
         self.assertEqual(combined.nanmean(), np.nanmean(combined))
+
+if __name__ == '__main__':
+    unittest.main()

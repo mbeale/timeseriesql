@@ -6,6 +6,7 @@ from .time import TimeIndex, convert_string_to_seconds
 from itertools import compress
 from .timeseries_collection import TimeSeriesCollection
 from .time_chunk import TimeChunk
+from .utils import dispatchmethod
 
 
 class TimeSeries:
@@ -43,135 +44,6 @@ class TimeSeries:
         if time != []:
             time = time[-self.data.shape[0]:]
         self._time = np.array(time, dtype=np.float64)
-
-    def __truediv__(self, other):
-        return self.data.__truediv__(other)
-
-    def __add__(self, other):
-        return self.data.__add__(other)
-
-    def __sub__(self, other): # pragma: no cover
-        return self.data.__sub__(other)
-
-    def __mul__(self, other):
-        return self.data.__mul__(other)
-
-    def __floordiv__(self, other):# pragma: no cover
-        return self.data.__floordiv__(other)
-
-    def __mod__(self, other):# pragma: no cover
-        return self.data.__mod__(other)
-
-    def __pow__(self, other):# pragma: no cover
-        return self.data.__pow__(other)
-
-    def __lshift__(self, other):# pragma: no cover
-        return self.data.__lshift__(other)
-
-    def __rshift__(self, other):# pragma: no cover
-        return self.data.__rshift__(other)
-
-    def __and__(self, other):# pragma: no cover
-        return self.data.__and__(other)
-
-    def __xor__(self, other):# pragma: no cover
-        return self.data.__xor__(other)
-
-    def __or__(self, other):# pragma: no cover
-        return self.data.__or__(other)
-
-    def __iadd__(self, other):
-        return self.data.__iadd__(other)
-
-    def __isub__(self, other):# pragma: no cover
-        return self.data.__isub__(other)
-
-    def __imul__(self, other):
-        return self.data.__imul__(other)
-
-    def __idiv__(self, other):# pragma: no cover
-        return self.data.__idiv__(other)
-
-    def __ifloordiv__(self, other):# pragma: no cover
-        return self.data.__ifloordiv__(other)
-
-    def __imod__(self, other):# pragma: no cover
-        return self.data.__imod__(other)
-
-    def __ipow__(self, other):# pragma: no cover
-        return self.data.__ipow__(other)
-
-    def __ilshift__(self, other):# pragma: no cover
-        return self.data.__ilshift__(other)
-
-    def __irshift__(self, other):# pragma: no cover
-        return self.data.__irshift__(other)
-
-    def __iand__(self, other):# pragma: no cover
-        return self.data.__iand__(other)
-
-    def __ixor__(self, other):# pragma: no cover
-        return self.data.__ixor__(other)
-
-    def __ior__(self, other):# pragma: no cover
-        return self.data.__ior__(other)
-
-    def __radd__(self, other):# pragma: no cover
-        return self.data.__radd__(other)
-
-    def __rsub__(self, other):# pragma: no cover
-        return self.data.__rsub__(other)
-
-    def __rmul__(self, other):
-        return self.data.__rmul__(other)
-
-    def __rdiv__(self, other):# pragma: no cover
-        return self.data.__rdiv__(other)
-
-    def __rfloordiv__(self, other):# pragma: no cover
-        return self.data.__rfloordiv__(other)
-
-    def __rmod__(self, other):# pragma: no cover
-        return self.data.__rmod__(other)
-
-    def __rpow__(self, other):# pragma: no cover
-        return self.data.__rpow__(other)
-
-    def __rlshift__(self, other):# pragma: no cover
-        return self.data.__rlshift__(other)
-
-    def __rrshift__(self, other):# pragma: no cover
-        return self.data.__rrshift__(other)
-
-    def __rand__(self, other):# pragma: no cover
-        return self.data.__rand__(other)
-
-    def __rxor__(self, other):# pragma: no cover
-        return self.data.__rxor__(other)
-
-    def __ror__(self, other):# pragma: no cover
-        return self.data.__ror__(other)
-
-    def __lt__(self, other):# pragma: no cover
-        return self.data.__lt__(other)
-
-    def __le__(self, other):# pragma: no cover
-        return self.data.__le__(other)
-
-    def __eq__(self, other):
-        return self.data.__eq__(other)
-
-    def __ne__(self, other):# pragma: no cover
-        return self.data.__ne__(other)
-
-    def __gt__(self, other):# pragma: no cover
-        return self.data.__gt__(other)
-
-    def __ge__(self, other):# pragma: no cover
-        return self.data.__ge__(other)
-
-    def __len__(self):
-        return self.data.__len__()
 
     def __array__(self):# pragma: no cover
         return self.data
@@ -235,22 +107,8 @@ class TimeSeries:
         except TypeError as e:
             return self.data.__setitem__(self._handle_type_error(key, e), item)
 
-
+    @dispatchmethod
     def _handle_index_error(self, key, error):
-        time_slice = key
-        extra_slices = None
-        if isinstance(key, tuple):
-            time_slice, extra_slices = key
-        if isinstance(time_slice, (np.datetime64, slice)):
-            start, stop = self._get_slice_by_datetime(time_slice)
-            if (start, stop) == (None, None):
-                raise error
-            if extra_slices:
-                return (start, extra_slices)
-            else:
-                return start
-        if isinstance(key, int):
-            raise error
         l = len(key)
         if l != 1:
             raise error
@@ -259,6 +117,25 @@ class TimeSeries:
             if len(filters) < 1:
                 return slice(0,0)  # maybe should return something else?
             return (slice(None), filters)
+
+    @_handle_index_error.register(int)
+    def _(self, key, error):
+        raise error
+
+    @_handle_index_error.register(tuple)
+    @_handle_index_error.register(slice)
+    @_handle_index_error.register(np.datetime64)
+    def _(self, key, error):
+        time_slice = key
+        extra_slices = None
+        if isinstance(key, tuple):
+            time_slice, extra_slices = key
+        start, stop = self._get_slice_by_datetime(time_slice)
+        if (start, stop) == (None, None):
+            raise error
+        if extra_slices:
+            return (start, extra_slices)
+        return start
 
     def _handle_type_error(self, key, error, item = None):
         # build new slice
@@ -357,14 +234,6 @@ class TimeSeries:
                             del common_labels[k]
         return common_labels
 
-    def _generate_title(self):
-        """Generate a title based on common tags"""
-        # get common labels
-        labels = self._get_unique_keys()
-        if len(labels) > 0:
-            return ".".join([str(v) for k, v in labels.items()])
-        return "TimeSeries"
-
     def _get_unique_keys(self):
         """Get list of unique keys"""
         labels = self.labels[0].copy()
@@ -374,13 +243,6 @@ class TimeSeries:
                     del labels[k]
         return labels
     
-    def _generate_labels(self):
-        common_labels = self._get_unique_keys().keys()
-        labels = []
-        for l in self.labels:
-            labels.append(".".join([str(v) for k, v in l.items() if k not in common_labels]))
-        return labels
-
     @property
     def time(self):
         """Return only the TimeSeries index"""
@@ -692,3 +554,18 @@ class TimeSeries:
         ts = TimeSeries(shape=self.shape, labels=self.labels.copy(), time=self._time)
         ts.data = self.data.copy()
         return ts
+
+
+def delegate(cls, attr_name, method_name):
+    def delegated(self, *vargs, **kwargs):
+        a = getattr(self, attr_name)
+        m = getattr(a, method_name)
+        return m(*vargs, **kwargs)
+    setattr(cls, method_name, delegated)
+
+dunder_funcs = ['truediv', 'add', 'sub', 'mul', 'floordiv', 'mod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or', 'iadd', 'isub', 'imul', 'idiv', 'ifloordiv', 'imod', 'ipow', 'ilshift', 'irshift', 'iand', 'ixor', 'radd', 'rsub', 'rmul', 'rdiv', 'rfloordiv', 'rmod', 'rpow', 'rlshift', 'rand', 'rxor', 'ror', 'lt', 'le', 'ne', 'eq', 'gt', 'ge','len']
+
+# proxy the magic methods to the numpy array
+for name in dunder_funcs:
+    name = f"__{name}__"
+    delegate(TimeSeries, 'data', name)

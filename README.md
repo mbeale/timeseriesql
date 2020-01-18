@@ -37,8 +37,8 @@
   * [Installation](#installation)
 * [Usage](#usage)
   * [CSV Backend](#csv-backend-usage)
-  * [AppOptics Backend](#appoptics-backend-usage)
   * [TimeSeries](#timeseries-usage)
+* [Plotting Libs](#plotting_libs)
 * [Roadmap](#roadmap)
 * [Contributing](#contributing)
 * [License](#license)
@@ -125,7 +125,7 @@ If any columns are empty or don't contain a numeric value, the value becomes a `
 #### Basic CSV Usage
 
 ```python
-from timeseriesql.backends import CSVBackend
+from timeseriesql.backends.csv_backend import CSVBackend
 
 data = CSVBackend(x for x in "path/to.csv")[:]
 ```
@@ -161,68 +161,10 @@ data = CSVBackend(x for x in "path/to.csv").labels(
 )[:]
 ```
 
-### AppOptics Backend Usage
-
-[Appoptics](www.appoptics.com) is a commercial time series database product.  The backend converts a query into an 
-API call.
-
-The backend expects a ``APPOPTICS_TOKEN`` environment variable to be set in order to authenticate to AppOptics.
-
-#### AppOptics Query
-
-```python
-from timeseriesql.backends.ao_backend import AOBackend
-
-data = AOBackend(x for x in "metric.name")['1h'] #basic
-data = AOBackend(x * 100 for x in "metric.name")['1h'] #binary operations (+, -, /, *)
-data = AOBackend(x * 1.8 + 32 for x in "metric.name")['1h'] #multiple binary operations (°C to °F)
-data = AOBackend(x.max for x in "metric.name")[3600:] #get max value
-```
-
-#### AppOptics Filtering
-
-Currently only ``==`` and ``!=`` are supported.
-
-```python
-from timeseriesql.backends.ao_backend import AOBackend
-
-data = AOBackend(x for x in "metric.name" if x.environment == 'production')[3600:]
-```
-
-#### AppOptics Grouping
-
-```python
-from timeseriesql.backends.ao_backend import AOBackend
-
-data = AOBackend(x for x in "metric.name").group('environment')[3600:]
-data = AOBackend(x - y for x,y in AOBackend((x.max for x in "metric1"), (x.min for x in "metric2")).by('tag1'))[3600:]
-```
-
-#### AppOptics Time
-```python
-from timeseriesql.backends.ao_backend import AOBackend
-
-data = AOBackend(x for x in "metric.name")[:] #no start or end time (not recommended)
-data = AOBackend(x for x in "metric.name")[3600:] #from now - 3600 seconds until now, resolution of 1
-data = AOBackend(x for x in "metric.name")[3600:1800] #from now - 3600 seconds until now - 1800 seconds, resolution of 1
-data = AOBackend(x for x in "metric.name")[3600::300] #from now - 3600 seconds until now resoultion of 300 seconds
-```
-
-#### AppOptics Functions
-```python
-data = AOBackend(sum(derive(x)) for x in "metric.name")[3600:] #get the sums of the derivatives
-data = AOBackend(zero_fill(x) for x in "metric.name")[3600::60] #zero_fill
-```
-
-#### AppOptics Raw Composite
-```python
-data = AOBackend('s("some_metric", "*")')[3600:]
-```
-
 ### TimeSeries Usage
 
 The `TimeSeries` object is allows for manipulation of the time series data after the it's been queried from the 
-backend.  There are also helper functions to convert to a pandas `DataFrame` and plot using matplotlib.  
+backend.   
 
 In the following examples, the variables starting with `ts_` are assumed to be queried data from a backend.
 
@@ -309,6 +251,26 @@ The conversion returns 2 pandas DataFrames, one for the labels and the other for
 ```python
 data, labels = ts_1.to_pandas()
 ```
+
+<!-- PLOTTING_LIBS -->
+## Plotting Libs
+
+### Available
+
+* [matplotlib](https://github.com/mbeale/tiemseriesql-matplotlib)
+
+### Creating a custom backend
+
+Start by extending the [Plot](https://github.com/mbeale/timeseriesql/blob/master/timeseriesql/plot.py) class.
+
+```python
+from timeseries.plot import Plot
+class NewPlottingLib(Plot):
+  pass
+```
+
+There is a list of functions that can be extended for as different plots.  Also there are functions that generate titles, xlabel, ylabel, and legend labels.  Use those to grab default information.  They can be overridden to provide more custom logic around the those fields.
+
 
 <!-- ROADMAP -->
 ## Roadmap

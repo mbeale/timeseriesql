@@ -216,3 +216,6 @@ class TestAST(unittest.TestCase):
         actual = a.decompile()
         expected = Metric('test')
         self.assertEqual(actual, expected)
+
+if __name__ == '__main__':
+    unittest.main()

@@ -141,3 +141,5 @@ class TestCSVBackend(unittest.TestCase):
         tstamps = [1571296500.0 + (i * 60) for i in range(11)]
         self.assertTrue(np.array_equal(data.time, tstamps))
 
+if __name__ == '__main__':
+    unittest.main()
