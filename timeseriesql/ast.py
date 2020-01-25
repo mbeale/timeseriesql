@@ -327,9 +327,12 @@ class AST:
                 if stack_val.value.groupings:
                     self.group_by = stack_val.value.groupings
             except:  # not a query object
-                for q in stack_val.value:
-                    self.stack.append(Metric(q))
-
+                # only break out if a list or tuple iter, otherwise put value on stack
+                if isinstance(stack_val.value, (list, type(iter(())))):
+                    for q in stack_val.value:
+                        self.stack.append(Metric(q))
+                else:
+                    self.stack.append(Metric(stack_val.value))
 
     def _jump_absolute(self, instr):
         pass
@@ -354,7 +357,9 @@ class AST:
             self.stack.append(self.variables[instr.argval])
 
     def _load_global(self, instr):
-        self.stack.append(Value(self.current_gen.gi_frame.f_globals.get(instr.argval, instr.argval)))
+        self.stack.append(
+            Value(self.current_gen.gi_frame.f_globals.get(instr.argval, instr.argval))
+        )
 
     def _pop_jump_if_false(self, instr):
         self.variables[self.working_var] = self.stack.pop()

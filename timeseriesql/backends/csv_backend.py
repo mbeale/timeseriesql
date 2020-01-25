@@ -1,5 +1,7 @@
 import numpy as np
 import csv
+import datetime
+from dateutil.parser import parse
 from itertools import compress
 from timeseriesql.query import Query
 from timeseriesql.timeseries import TimeSeries
@@ -17,7 +19,8 @@ def convert_date_to_float(s):
     try:
         return float(s)
     except:
-        return np.datetime64(s).astype(float)
+        d = parse(s)
+        return datetime.datetime.timestamp(d)
 
 
 class CSVFile:
@@ -105,32 +108,38 @@ class CSVBackend(Query):
         labels = []
         data = []
         time = []
-        with open(csvobject.name) as csvfile:
+        if str(type(csvobject.name)) == "<class '_csv.reader'>":
+            csvfile = None
+            filereader = csvobject.name
+        else:
+            csvfile = open(csvobject.name)
             filereader = csv.reader(csvfile)
-            read_header = False
-            mask = None
-            for row in filereader:
-                if not read_header:
-                    if not self._noheader:
-                        read_header = True
-                        if not self._labels:
-                            mask = self._header_mask(csvobject.filters, row)
-                            labels = [{"label": x} for x in compress(row, mask)]
-                        else:
-                            mask = [0] + [1 for x in row[1:]]
-                            labels = self._labels
-                        continue
+        read_header = False
+        mask = None
+        for row in filereader:
+            if not read_header:
+                if not self._noheader:
+                    read_header = True
+                    if not self._labels:
+                        mask = self._header_mask(csvobject.filters, row)
+                        labels = [{"label": x} for x in compress(row, mask)]
                     else:
                         mask = [0] + [1 for x in row[1:]]
                         labels = self._labels
-                        read_header = True
-                data.append(list(map(convert_to_float, compress(row, mask))))  # row zero is time
-                time.append(row[0])
+                    continue
+                else:
+                    mask = [0] + [1 for x in row[1:]]
+                    labels = self._labels
+                    read_header = True
+            data.append(list(map(convert_to_float, compress(row, mask))))  # row zero is time
+            time.append(row[0])
         t = TimeSeries(
             shape=(len(data), len(labels)),
             time=list(map(convert_date_to_float, time)),
             labels=labels,
         )
+        if csvfile:
+            del csvfile
         t[:] = data
-        return t
+        return t[self.period]
 
