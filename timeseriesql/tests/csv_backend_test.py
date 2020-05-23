@@ -64,6 +64,11 @@ class TestCSVBackend(unittest.TestCase):
 
         # time index is correct
         self.assertTrue(np.array_equal(data.time[-2:], [1520640000.0, 1520726400.0]))
+        
+    def test_load_csv_from_url(self):
+        data = CSVBackend(x for x in "https://raw.githubusercontent.com/mbeale/timeseriesql/master/timeseriesql/tests/csv/basic.csv" if x.label == "A")[:]
+        self.assertEqual((11, 1), data.shape)
+        self.assertTrue(np.array_equal(data.labels, [{"label": "A"}]))
 
     def test_load_csv_filter_headers(self):
         # =, !-, not in, in

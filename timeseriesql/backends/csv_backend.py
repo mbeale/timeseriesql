@@ -1,11 +1,56 @@
 import numpy as np
 import csv
 import datetime
+import urllib.request
+import codecs
+import re
 from dateutil.parser import parse
 from itertools import compress
 from timeseriesql.query import Query
 from timeseriesql.timeseries import TimeSeries
 from timeseriesql.ast import Metric, Value
+
+# URL-link validation
+ip_middle_octet = "(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5]))"
+ip_last_octet = "(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))"
+
+URL_PATTERN = re.compile(
+    "^"
+    # protocol identifier
+    "(?:(?:https?|ftp|rtsp|rtp|mmp)://)"
+    # user:pass authentication
+    "(?:\S+(?::\S*)?@)?" "(?:" "(?P<private_ip>"
+    # IP address exclusion
+    # private & local networks
+    "(?:localhost)|"
+    "(?:(?:10|127)" + ip_middle_octet + "{2}" + ip_last_octet + ")|"
+    "(?:(?:169\.254|192\.168)" + ip_middle_octet + ip_last_octet + ")|"
+    "(?:172\.(?:1[6-9]|2\d|3[0-1])" + ip_middle_octet + ip_last_octet + "))"
+    "|"
+    # IP address dotted notation octets
+    # excludes loopback network 0.0.0.0
+    # excludes reserved space >= 224.0.0.0
+    # excludes network & broadcast addresses
+    # (first & last IP address of each class)
+    "(?P<public_ip>"
+    "(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])"
+    "" + ip_middle_octet + "{2}"
+    "" + ip_last_octet + ")"
+    "|"
+    # host name
+    "(?:(?:[a-z\u00a1-\uffff0-9_-]-?)*[a-z\u00a1-\uffff0-9_-]+)"
+    # domain name
+    "(?:\.(?:[a-z\u00a1-\uffff0-9_-]-?)*[a-z\u00a1-\uffff0-9_-]+)*"
+    # TLD identifier
+    "(?:\.(?:[a-z\u00a1-\uffff]{2,}))" ")"
+    # port number
+    "(?::\d{2,5})?"
+    # resource path
+    "(?:/\S*)?"
+    # query string
+    "(?:\?\S*)?" "$",
+    re.UNICODE | re.IGNORECASE,
+)
 
 
 def convert_to_float(s):
@@ -112,8 +157,12 @@ class CSVBackend(Query):
             csvfile = None
             filereader = csvobject.name
         else:
-            csvfile = open(csvobject.name)
-            filereader = csv.reader(csvfile)
+            if re.compile(URL_PATTERN).match(csvobject.name):
+                csvfile = urllib.request.urlopen(csvobject.name)
+                filereader = csv.reader(codecs.iterdecode(csvfile, "utf-8"))
+            else:
+                csvfile = open(csvobject.name)
+                filereader = csv.reader(csvfile)
         read_header = False
         mask = None
         for row in filereader:
@@ -142,4 +191,3 @@ class CSVBackend(Query):
             del csvfile
         t[:] = data
         return t[self.period]
-
