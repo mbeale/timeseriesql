@@ -1,13 +1,23 @@
-import numpy as np
+from typing import Dict, Optional
+import numpy as np  # type: ignore
 import re
 
-second_conversions = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
+second_conversions: Dict[str, int] = {
+    "s": 1,
+    "m": 60,
+    "h": 3600,
+    "d": 86400,
+    "w": 604800,
+    "y": 31536000,
+}
 
 
-def convert_string_to_seconds(s):
+def convert_string_to_seconds(s: str) -> int:
     try:
-        _, n, uom = re.split("(\d+)", s)
-        n = int(n)
+        num_s: str
+        uom: str
+        _, num_s, uom = re.split("(\d+)", s)
+        n: int = int(num_s)
         if uom not in second_conversions.keys():
             raise ValueError(
                 f"{uom} is not valid in the list of valid values: {second_conversions.keys()}"

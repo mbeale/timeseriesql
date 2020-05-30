@@ -1,4 +1,9 @@
-import numpy as np
+import numpy as np  # type: ignore
+from typing import Callable, List, TYPE_CHECKING, Optional, Generator
+
+if TYPE_CHECKING:
+    from .time_chunk import TimeChunk
+    from .timeseries import TimeSeries
 
 
 class TimeSeriesCollection:
@@ -23,15 +28,18 @@ class TimeSeriesCollection:
         If there is any initial data to start with
     """
 
-    data = None
-    axis = 0
-    collapse_index = False
-    collapse_time_index = 0
-    chunks = []
-    parent = None
-    init_data = None
+    data: np.array = None
+    axis: int = 0
+    collapse_index: bool = False
+    collapse_time_index: int = 0
+    chunks: "Generator[TimeChunk, None, None]"
+    parent: "TimeSeries"
+    init_data: Optional[np.array] = None
 
-    def __getattr__(self, attr_name):
+    def __init__(self, parent: "TimeSeries"):
+        self.parent = parent
+
+    def __getattr__(self, attr_name: str) -> Callable:
         """ Return a method for process each chunk """
         from .timeseries import TimeSeries
 
@@ -41,6 +49,10 @@ class TimeSeriesCollection:
                 for chunk in self.chunks:
                     if "axis" not in kwargs:
                         kwargs["axis"] = self.axis
+                    if not chunk.row_mask:
+                        return AttributeError
+                    if not chunk.col_mask:
+                        return AttributeError
                     if isinstance(getattr(np, attr_name), np.ufunc):
                         data = getattr(np, attr_name).reduce(
                             self.parent[chunk.row_mask][:, chunk.col_mask], *args, **kwargs

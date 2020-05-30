@@ -4,6 +4,7 @@ import numbers
 from .timeseries import TimeSeries
 from .time import convert_string_to_seconds
 from .ast import AST
+from typing import Dict, Generator, Optional, List, Union, Any
 
 
 class Query:
@@ -14,6 +15,12 @@ class Query:
 
     DEFAULT_START_OFFSET = int(os.environ.get("DEFAULT_START_OFFSET", "3600"))
     DEFAULT_RESOLUTION = int(os.environ.get("DEFAULT_RESOLUTION", "60"))
+
+    period: Optional[Union[slice, str, int]]
+    groupings: Optional[List[Any]]
+    filters: List[Any]
+    data: Optional[TimeSeries]
+    generators: List[Generator]
 
     def __init__(self, *args):
         """Override __init__"""
@@ -31,7 +38,7 @@ class Query:
         """Nothing to iterate"""
         raise StopIteration()
 
-    def __getitem__(self, items):
+    def __getitem__(self, items: slice) -> TimeSeries:
         """Have the ability to fetch data via the getitem method
 
         Example
@@ -50,7 +57,7 @@ class Query:
         self.period = items
         return self.execute_plan()
 
-    def execute_plan(self):
+    def execute_plan(self) -> TimeSeries:
         """Execute the query against the backend
 
         In this case there is a simple return of an empty
@@ -61,14 +68,14 @@ class Query:
         period = self._process_period()
         # should return time series
         # return empty timeseries based on the period
-        timeindex = [
-            x for x in range(period["start_time"], period["end_time"], period["resolution"])
+        timeindex: List[float] = [
+            float(x) for x in range(period["start_time"], period["end_time"], period["resolution"])
         ]
-        t1 = TimeSeries(shape=(len(timeindex), 1), time=timeindex)
+        t1: TimeSeries = TimeSeries(shape=(len(timeindex), 1), time=timeindex)
         # t1[:] = [[i,np.nan] for i in timeindex]
         return t1
 
-    def _process_period(self):
+    def _process_period(self) -> Dict[str, int]:
         """ This processes the period from the __getitem__() function
 
         Slice Examples:
@@ -95,10 +102,10 @@ class Query:
         -------
         a period dictionary
         """
-        start_offset = self.DEFAULT_START_OFFSET
-        end_offset = 0
-        resolution = self.DEFAULT_RESOLUTION
-        now = int(time.time())
+        start_offset: int = self.DEFAULT_START_OFFSET
+        end_offset: int = 0
+        resolution: int = self.DEFAULT_RESOLUTION
+        now: int = int(time.time())
         if isinstance(self.period, int):
             start_offset = self.period
         elif isinstance(self.period, slice):
@@ -161,7 +168,7 @@ class Query:
         """
         return AST(self.generators, self.groupings).decompile()
 
-    def by(self, labels, func="mean"):
+    def by(self, labels: Union[List[str], str], func: str = "mean"):
         """Adds a group by step to the Query plan
         
         Params:
@@ -186,7 +193,9 @@ class Query:
         """Fetch all items.  This can be overridden with sane defaults"""
         return self[:]
 
-    def range(self, start, end=None, resolution=None):
+    def range(
+        self, start: int, end: Optional[int] = None, resolution: Optional[int] = None
+    ) -> TimeSeries:
         """ 
         Fetch points by a specified time range 
         
@@ -203,9 +212,13 @@ class Query:
         -------
         TimeSeries
         """
-        now = int(time.time())
-        end_offset = None if end == None else end - start
-        res = self.DEFAULT_RESOLUTION if resolution is None else resolution
+        end_offset: Optional[int]
+        now: int = int(time.time())
+        if isinstance(end, int):
+            end_offset = end - start
+        else:
+            end_offset = None
+        res: Optional[int] = self.DEFAULT_RESOLUTION if resolution is None else resolution
 
         s = slice(now - start, end_offset, res)
         return self[s]

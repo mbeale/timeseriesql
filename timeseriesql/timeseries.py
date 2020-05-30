@@ -1,4 +1,5 @@
-import numpy as np
+from __future__ import annotations
+import numpy as np  # type: ignore
 import numbers
 from collections.abc import Sequence
 from .np_array import NumpyArray
@@ -7,6 +8,7 @@ from itertools import compress
 from .timeseries_collection import TimeSeriesCollection
 from .time_chunk import TimeChunk
 from .utils import dispatchmethod
+from typing import Any, Callable, Dict, Optional, List, Tuple, Union
 
 
 class TimeSeries:
@@ -21,7 +23,20 @@ class TimeSeries:
     labels : [dict]
         A list of key value pairs for the streams
     """
-    def __init__(self, *args, shape=(4, 3), labels=None, time=[], **kwargs):
+
+    data: NumpyArray
+    _time: np.array
+    labels: List[Dict[Any, Any]]
+    parent: TimeSeries
+
+    def __init__(
+        self,
+        *args,
+        shape: Tuple[int, Optional[int]] = (4, 3),
+        labels: Optional[Union[List[Dict[Any, Any]], Dict[Any, Any]]] = None,
+        time: List[float] = [],
+        **kwargs,
+    ):
         """
         Initialize the object
 
@@ -42,33 +57,35 @@ class TimeSeries:
         else:
             self.labels = []
         if time != []:
-            time = time[-self.data.shape[0]:]
+            time = time[-self.data.shape[0] :]
         self._time = np.array(time, dtype=np.float64)
 
-    def __array__(self):# pragma: no cover
+    def __array__(self) -> TimeSeries:  # pragma: no cover
         return self.data
 
-    def __array_wrap__(self, out_arr, context=None):
+    def __array_wrap__(self, out_arr: TimeSeries, context=None) -> TimeSeries:
         return self.wrap_new_data(out_arr)
 
-    def __str__(self):# pragma: no cover
+    def __str__(self) -> str:  # pragma: no cover
         """ String override which gives a larger amount of details """
-        labels = ""
+        labels: Optional[str] = ""
         for i, l in enumerate(self.labels):
             if i > 4:
-                labels += f"{len(self.labels) - 5} more....\n"
+                if labels:
+                    labels += f"{len(self.labels) - 5} more....\n"
                 break
-            for k, v in l.items():
-                labels += f"{k}:{v} "
-            labels += "\n"
+            if labels:
+                for k, v in l.items():
+                    labels += f"{k}:{v} "
+                labels += "\n"
         if labels == "":
             labels = None
-        time_range = ""
+        time_range: str = ""
         if self.time[0] > 0:
             time_range = f"Time Range\n===========\n{self.time.dt[0]} ... {self.time.dt[-1]}\n\n"
         return f"\nLabels:\n===========\n{labels}\n{time_range}Data:\n============\n{self.data.__str__()}"
 
-    def __getattr__(self, attr_name):
+    def __getattr__(self, attr_name: str) -> Callable:
         """ Attach the data attributes to the top level """
         if attr_name in dir(self.data) and not callable(getattr(self.data, attr_name)):
             return getattr(self.data, attr_name)
@@ -83,20 +100,28 @@ class TimeSeries:
 
         return method
 
-    def __getitem__(self, items):
+    def __getitem__(self, items: Union[slice, Dict[str, str], Tuple[slice, slice]]) -> TimeSeries:
         """Add functionality for filtering on labels and datetime objects"""
         # if a label filter, return view for the correct streams
         try:
-            time_index = self._convert_time_index(items)
-            return self.wrap_new_data(self.data.__getitem__(items), time=self.time[time_index], ndx=items)
+            time_index = self._convert_time_index(items)  # type: ignore
+            return self.wrap_new_data(
+                self.data.__getitem__(items), time=self.time[time_index], ndx=items  # type: ignore
+            )
         except IndexError as e:
+            # datetime64, tuple, dict
             index = self._handle_index_error(items, e)
             time_index = self._convert_time_index(index)
-            return self.wrap_new_data(self.data.__getitem__(index), time=self.time[time_index], ndx=index)
+            return self.wrap_new_data(
+                self.data.__getitem__(index), time=self.time[time_index], ndx=index
+            )
         except TypeError as e:
+            # slice, tuple
             index = self._handle_type_error(items, e)
-            time_index = self._convert_time_index(index)
-            return self.wrap_new_data(self.data.__getitem__(index), time=self.time[time_index], ndx=index)
+            time_index = self._convert_time_index(index)  # type: ignore
+            return self.wrap_new_data(
+                self.data.__getitem__(index), time=self.time[time_index], ndx=index
+            )
 
     def __setitem__(self, key, item):
         """ Set the item based off of a key in data """
@@ -115,17 +140,18 @@ class TimeSeries:
         if l == 1:
             filters = self.argfilter(key)
             if len(filters) < 1:
-                return slice(0,0)  # maybe should return something else?
+                return slice(0, 0)  # maybe should return something else?
             return (slice(None), filters)
+        return slice(0, 0)  # maybe should return something else?
 
     @_handle_index_error.register(int)
     def _(self, key, error):
         raise error
 
-    @_handle_index_error.register(tuple)
+    @_handle_index_error.register(tuple)  # type: ignore
     @_handle_index_error.register(slice)
     @_handle_index_error.register(np.datetime64)
-    def _(self, key, error):
+    def _(self, key, error):  # type: ignore
         time_slice = key
         extra_slices = None
         if isinstance(key, tuple):
@@ -137,7 +163,7 @@ class TimeSeries:
             return (start, extra_slices)
         return start
 
-    def _handle_type_error(self, key, error, item = None):
+    def _handle_type_error(self, key, error, item=None):
         # build new slice
         time_slice = key
         extra_slices = None
@@ -153,24 +179,24 @@ class TimeSeries:
                 return slice(start, stop)
         raise error
 
-    def _convert_time_index(self, index):
+    def _convert_time_index(self, index: Union[slice, Dict[str, str]]) -> Sequence:
         if not isinstance(index, Sequence):
-            return index
+            return index  # type: ignore
         else:
-            return index[0]
+            return index[0]  # np.int64, list, all above
 
-    def _merge_time_indicies(self, t1, t2):
+    def _merge_time_indicies(self, t1: np.array, t2: np.array) -> np.array:
         """Merge time indicies to crate an a new index of the union of the two indicies"""
-        res = sorted(set(t1).union(set(t2)))
+        res: List[float] = sorted(set(t1).union(set(t2)))
         return np.array(res)
 
-    def _get_group_masks(self, group):
+    def _get_group_masks(self, group: Union[List[str], str]) -> List[List[int]]:
         """Return a mask for each label"""
         if not isinstance(group, list):
             group = [group]
-        groupings = {}
+        groupings: Dict[str, List[int]] = {}
         for i, stream in enumerate(self.labels.copy()):
-            key = ""
+            key: str = ""
             for g in group:
                 if g in stream:
                     key += stream[g]
@@ -180,15 +206,20 @@ class TimeSeries:
                 groupings[key] = [i]
         return [x for x in groupings.values()]
 
-    def _get_slice_by_datetime(self, start_date=None, stop_date=None):
+    def _get_slice_by_datetime(
+        self,
+        start_date: Optional[Union[np.datetime64, np.timedelta64]] = None,
+        stop_date: Optional[Union[np.datetime64, np.timedelta64]] = None,
+    ) -> Tuple[int, Optional[int]]:
         """Return the indicies for a TimeSeries object searching by a datetime object"""
-        start, stop = (start_date, stop_date)
+        start: int = 0
+        stop: Optional[int] = len(self.time)
         if isinstance(start_date, np.timedelta64):
             start_date = self.time.dt[0] + start_date
         if isinstance(start_date, np.datetime64):
-            start = np.argwhere(self.time >= start_date.astype(float))
-            if len(start) > 0:
-                start = start[0][0]
+            where_ar: np.array = np.argwhere(self.time >= start_date.astype(float))
+            if len(where_ar) > 0:
+                start = where_ar[0][0]
             else:
                 raise IndexError("No timestamps exist at or after %s" % start_date)
         if isinstance(stop_date, np.timedelta64):
@@ -197,34 +228,34 @@ class TimeSeries:
             else:
                 stop_date = self.time.dt[-1] - stop_date
         if isinstance(stop_date, np.datetime64):
-            stop = np.argwhere(self.time >= stop_date.astype(float))
-            if len(stop) > 0:
-                stop = stop[0][0]
+            where_ar = np.argwhere(self.time >= stop_date.astype(float))
+            if len(where_ar) > 0:
+                stop = where_ar[0][0]
             else:
-                stop = np.argwhere(self.time <= stop_date.astype(float))
-                if len(stop) > 0:
+                where_ar = np.argwhere(self.time <= stop_date.astype(float))
+                if len(where_ar) > 0:
                     stop = None
                 else:
                     raise IndexError("No timestamps exist before or at %s" % stop_date)
         return (start, stop)
 
-    def _least_common_labels(self, mask):
+    def _least_common_labels(self, mask: Union[slice, List[Any]]) -> Dict[str, str]:
         """ create true false mask - probably a better way to do this """
-        label_mask = []
-        next_i = 0
+        label_mask: List[int] = []
+        next_i: int = 0
         if isinstance(mask, slice):
-            mask = [x for x in range(0,self.data.shape[1])]
+            mask = [x for x in range(0, self.data.shape[1])]
         for m in mask:
             if next_i == m:
                 label_mask.append(1)
                 next_i += 1
             else:
-                for _ in range(next_i,m):
+                for _ in range(next_i, m):
                     label_mask.append(0)
                 label_mask.append(1)
                 next_i = m + 1
-        labels = list(compress(self.labels.copy(), label_mask))
-        common_labels = []
+        labels: List[Dict[str, str]] = list(compress(self.labels.copy(), label_mask))
+        common_labels: Dict[str, str] = {}
         if labels:
             common_labels = labels[0].copy()
             if len(labels) > 1:
@@ -234,22 +265,32 @@ class TimeSeries:
                             del common_labels[k]
         return common_labels
 
-    def _get_unique_keys(self):
+    def _get_unique_keys(self) -> Dict[str, str]:
         """Get list of unique keys"""
-        labels = self.labels[0].copy()
+        labels: Dict[str, str] = self.labels[0].copy()
         for l in self.labels[1:]:
             for k in labels.copy().keys():
                 if k not in l or l[k] != labels[k]:
                     del labels[k]
         return labels
-    
+
     @property
-    def time(self):
+    def shape(self) -> Tuple[int, Optional[int]]:
+        return self.data.shape
+
+    @property
+    def time(self) -> TimeIndex:
         """Return only the TimeSeries index"""
         return TimeIndex(self._time.view(np.ndarray))
 
-    def wrap_new_data(self, out_arr, time=None, ndx=None):
+    def wrap_new_data(
+        self,
+        out_arr: Union[TimeSeries, NumpyArray],
+        time: Optional[np.array] = None,
+        ndx: Optional[Union[slice, int, list, tuple]] = None,
+    ) -> TimeSeries:
         """ Wrap a value returned from a ufunc in a TimeSeries object """
+
         if not isinstance(out_arr, np.ndarray) or not out_arr.shape:
             return out_arr
         if time is None:
@@ -261,25 +302,32 @@ class TimeSeries:
             new_to.data[:] = out_arr
         elif self.data.shape[0] == out_arr.shape[0]:
             rows = self.data.shape[0]
-            columns = out_arr.shape[1] if len(out_arr.shape) > 1 else 1
+            columns: int = out_arr.shape[1] if len(out_arr.shape) > 1 else 1
             out_arr = out_arr.reshape((rows, columns))
             new_to = TimeSeries(shape=(rows, columns), time=time, labels=self.labels)
             new_to.data[:] = out_arr
-            if ndx and len(ndx) > 1 and isinstance(ndx[1], (slice, int, list)):
+            if (
+                isinstance(ndx, (list, tuple))
+                and len(ndx) > 1
+                and isinstance(ndx[1], (slice, int, list))
+            ):
+                temp_labels: Union[List[Dict[Any, Any]], Dict[Any, Any]]
                 if isinstance(ndx[1], list):
-                    labels = [self.labels[x] for x in ndx[1]]
+                    temp_labels = [self.labels[x] for x in ndx[1]]
                 else:
-                    labels = self.labels[ndx[1]]
-                if not isinstance(labels, list):
-                    labels = [labels]
-                new_to.labels = labels
+                    temp_labels = self.labels[ndx[1]]
+                if not isinstance(temp_labels, list):
+                    temp_labels = [temp_labels]
+                new_to.labels = temp_labels
             else:
-                label = self.parent._least_common_labels([x for x in range(0,self.parent.data.shape[1])])
+                label = self.parent._least_common_labels(
+                    [x for x in range(0, self.parent.data.shape[1])]
+                )
                 new_to.labels = [label for _ in range(columns)]
         elif self.data.shape[1] == out_arr.shape[0]:
             columns = self.data.shape[1]
             rows = out_arr.shape[0] if len(out_arr.shape) > 1 else 1
-            if out_arr.size % (rows * columns) != 0: #not broadcastable
+            if out_arr.size % (rows * columns) != 0:  # not broadcastable
                 new_to = TimeSeries(shape=out_arr.shape, time=time, labels=self.labels)
             else:
                 out_arr = out_arr.reshape((rows, columns))
@@ -288,20 +336,27 @@ class TimeSeries:
         else:
             new_to = TimeSeries(shape=out_arr.shape, time=time, labels=self.labels)
             new_to.data[:] = out_arr
-            #return out_arr
+            # return out_arr
         return new_to
 
-    def vstack(self, new_data):
+    def vstack(self, new_data: Union[NumpyArray, TimeSeries]):
         """ Vertically stack data to a TimeSeries """
-        data = NumpyArray(shape=(self.shape[0] + new_data.shape[0], new_data.shape[1]), parent=self)
-        data[0:self.shape[0],:] = self.data
-        data[self.shape[0]:,:] = new_data.data
+        new_rows: int = new_data.shape[0]
+        if not isinstance(new_data.shape[1], int):
+            raise TypeError("Expected a different shape")
+        new_cols: int = new_data.shape[1]
+        data: NumpyArray = NumpyArray(shape=(self.shape[0] + new_rows, new_cols), parent=self)
+        data[0 : self.shape[0], :] = self.data
+        data[self.shape[0] :, :] = new_data.data
         self.data = data
-        #concat time index
+        # concat time index
         self._time = np.array(np.concatenate([self._time, new_data._time]), dtype=np.float64)
 
-
-    def merge(self, tseries, fill=np.nan):
+    def merge(
+        self,
+        tseries: Union[TimeSeries, List[TimeSeries]],
+        fill: Union[np.nan, float, np.float64] = np.nan,
+    ) -> TimeSeries:
         """Merge multiple timeseries into one TimeSeries object
 
         Parameters
@@ -333,8 +388,10 @@ class TimeSeries:
              8.54166667e-01, 7.78839232e+00, 3.19808880e+00]])
         """
         # find out if timeindex are the same
-        timeindex = self.time
-        columns = self.shape[1]
+        timeindex: np.array = self.time
+        if not isinstance(self.shape[1], int):
+            raise TypeError("Expecting a fully formed shape")
+        columns: int = self.shape[1]
         if not isinstance(tseries, list):
             tseries = [tseries]
         for t in tseries:
@@ -347,22 +404,26 @@ class TimeSeries:
             if not np.array_equal(timeindex, t.time):
                 # merge time index
                 timeindex = self._merge_time_indicies(timeindex, t.time)
+            if not isinstance(t.shape[1], int):
+                raise TypeError("Expecting a fully formed shape")
             columns += t.shape[1]
 
         # create new series
-        new_t = TimeSeries(
+        new_t: TimeSeries = TimeSeries(
             shape=(len(timeindex), columns), labels=self.labels.copy(), time=timeindex
         )
-        if  fill != np.nan and isinstance(fill, (float, np.float64)):
+        if fill != np.nan and isinstance(fill, (float, np.float64)):
             new_t[:] = fill
 
-        row_mask = np.isin(timeindex, self.time)
+        row_mask: np.array = np.isin(timeindex, self.time)
         new_t.data[row_mask, 0 : self.data.shape[1]] = self.data
 
         # set the counter
-        column_counter = self.shape[1]
+        column_counter: int = self.shape[1]
         for t in tseries:
-            t_columns = t.shape[1] + column_counter
+            if not isinstance(t.shape[1], int):
+                raise TypeError("Expecting a fully formed shape")
+            t_columns: int = t.shape[1] + column_counter
             row_mask = np.isin(timeindex, t.time)
             new_t[row_mask, column_counter:t_columns] = t.data
             column_counter = t_columns
@@ -370,7 +431,7 @@ class TimeSeries:
                 new_t.labels.append(l.copy())
         return new_t
 
-    def argfilter(self, clauses):
+    def argfilter(self, clauses: Dict[str, str]) -> List[int]:
         """Filter the columns of data based on labels.
 
         Parameters
@@ -387,17 +448,20 @@ class TimeSeries:
         t.argfilter([{'hostname': 'host2'}])
         >>> [1,4,6]
         """
-        stream_indexes = []
+        stream_indexes: List[int] = []
         for i, l in enumerate(self.labels.copy()):
             for k, v in clauses.items():
+                vlist: List[str]
                 if not isinstance(v, list):
-                    v = [v]
-                if k in l.keys() and l[k] in v:
+                    vlist = [v]
+                else:
+                    vlist = v
+                if k in l.keys() and l[k] in vlist:
                     stream_indexes.append(i)  # because first column is the time index
                     continue
         return stream_indexes
 
-    def filter(self, clauses):
+    def filter(self, clauses: Dict[str, str]) -> np.array:
         """Filter the columns of data based on labels.
 
         Parameters
@@ -426,104 +490,121 @@ class TimeSeries:
             [1.56571830e+09, 5.83333333e-01, 2.04479746e+01, ...,
              8.54166667e-01, 7.78839232e+00, 3.19808880e+00]])
         """
-        return self[[self.argfilter(clauses)]]
+        return self[[self.argfilter(clauses)]]  # type: ignore
 
-    def group(self, group):
+    def group(self, group: Union[List[str], str]):
         """ Create a collection based on a grouping """
         masks = self._get_group_masks(group)
-        collection = TimeSeriesCollection()
+        collection = TimeSeriesCollection(self)
         collection.chunks = (TimeChunk(slice(None, None, None), mask) for mask in masks)
         collection.axis = 1
-        collection.parent = self
         return collection
 
     def resample(self, period):
         """ Create a collection based on resampling by time """
         if isinstance(period, str):
             period = convert_string_to_seconds(period)
-        collection = TimeSeriesCollection()
+        collection = TimeSeriesCollection(self)
         collection.axis = 0
-        collection.parent = self
         collection.collapse_index = True
-        columns = [x for x in range(0,self.data.shape[1])]
-        collection.chunks = (TimeChunk(slice(*self._get_slice_by_datetime(np.datetime64(int(t), "s"), np.timedelta64(period, "s"))), columns) for t in range(int(self.time[0]), int(self.time[-1]), period)) # pylint: disable-msg=too-many-function-args
+        if not isinstance(self.shape[1], int):
+            raise TypeError("Expecting a fully formed shape")
+        columns: List[int] = [x for x in range(0, self.shape[1])]
+        collection.chunks = (
+            TimeChunk(
+                slice(
+                    *self._get_slice_by_datetime(
+                        np.datetime64(int(t), "s"), np.timedelta64(period, "s")
+                    )
+                ),
+                columns,
+            )
+            for t in range(int(self.time[0]), int(self.time[-1]), period)
+        )  # pylint: disable-msg=too-many-function-args
         return collection
 
     def to_pandas(self):
         """ Return two pandas objects.  One for the label data and one for the measurements"""
 
-        import pandas as pd
+        import pandas as pd  # type: ignore
 
-        columns = ["stream_" + str(x) for x in range(len(self.labels))]
-        data = pd.DataFrame(data=self.data, columns=columns)
+        columns: List[str] = ["stream_" + str(x) for x in range(len(self.labels))]
+        data: pd.DataFrame = pd.DataFrame(data=self.data, columns=columns)
         data["time_index"] = pd.to_datetime(self.time, unit="s")
         data.set_index("time_index")
-        label_columns = list(set(key for dic in self.labels for key in dic.keys()))
+        label_columns: List[str] = list(set(key for dic in self.labels for key in dic.keys()))
         label_data = [[row.get(key, None) for row in self.labels] for key in label_columns]
         labels = pd.DataFrame(columns=label_columns)
         for i, k in enumerate(label_columns):
             labels[k] = label_data[i]
         return (data, labels)
 
-    def rolling_window(self, size, stepsize=1):
+    def rolling_window(self, size: int, stepsize: int = 1) -> TimeSeriesCollection:
         """ Create a collection based on a rolling window """
-        collection = TimeSeriesCollection()
+        collection = TimeSeriesCollection(self)
         collection.axis = 0
-        collection.parent = self
         collection.collapse_index = True
-        init_data = TimeSeries(shape=(size-1, self.shape[1]), labels=self.labels, time=self._time[:size-1])
+        if not isinstance(self.shape[1], int):
+            raise TypeError("Expecting a fully formed shape")
+        init_data = TimeSeries(
+            shape=(size - 1, self.shape[1]), labels=self.labels, time=self._time[: size - 1]
+        )
         init_data[:] = np.nan
         collection.init_data = init_data
         collection.collapse_time_index = -1
-        collection.chunks = (TimeChunk(slice(i, i+size), slice(None, None, None)) for i in range(0, len(self)-size+1, stepsize))
+        collection.chunks = (
+            TimeChunk(slice(i, i + size), slice(None, None, None))
+            for i in range(0, len(self) - size + 1, stepsize)
+        )
         return collection
 
-    def fillnan(self, method):
+    def fillnan(self, method: Union[str, numbers.Number]):
         """ Replace np.nan with a number, or foward/back fill """
-        if isinstance(method, str) and method in ['bfill', 'ffill']:
+        if isinstance(method, str) and method in ["bfill", "ffill"]:
             modifier = -1
-            if method == 'bfill':
+            if method == "bfill":
                 modifier = 1
             for i in range(self.data.shape[1]):
                 while True:
-                    idx = np.argwhere(np.isnan(self.data[:,i]))
+                    idx = np.argwhere(np.isnan(self.data[:, i]))
                     if len(idx) == 0:
                         break
                     row, col = idx[-1]
                     col = i
                     if 0 < (row + modifier) < len(self.data):
-                        self.data[row,col] = self.data[row+modifier,col]
+                        self.data[row, col] = self.data[row + modifier, col]
                     else:
-                        self.data[row,col] = 0
+                        self.data[row, col] = 0
         elif isinstance(method, numbers.Number):
-            self.data[np.isnan(self.data).astype(bool)] = method #need as bool because all values are floats
+            self.data[
+                np.isnan(self.data).astype(bool)
+            ] = method  # need as bool because all values are floats
         else:
             raise ValueError("Method should be 'bfill','ffill', or a number")
 
-
     def bfill(self):
         """ Back fill np.nan """
-        return self.fillnan('bfill')
+        return self.fillnan("bfill")
 
     def ffill(self):
         """ Forward fill np.nan """
-        return self.fillnan('ffill')
+        return self.fillnan("ffill")
 
-    def fill(self, value):
+    def fill(self, value: Union[str, numbers.Number]):
         """ fill with a number np.nan """
         return self.fillnan(value)
 
-    def diff(self, *args, **kwargs):
+    def diff(self, *args, **kwargs) -> TimeSeries:
         """ Find the n difference for rows """
-        if 'axis' not in kwargs:
-            kwargs['axis'] = 0
-        data = np.diff(self, *args, **kwargs)
-        new_t = TimeSeries(shape=data.shape, time=self.time[-data.shape[0]:])
+        if "axis" not in kwargs:
+            kwargs["axis"] = 0
+        data: np.array = np.diff(self, *args, **kwargs)
+        new_t: TimeSeries = TimeSeries(shape=data.shape, time=self.time[-data.shape[0] :])
         new_t.labels = self.labels
         new_t[:] = data
         return new_t
 
-    def copy(self):
+    def copy(self) -> TimeSeries:
         """Override the copy method to include the labels
 
         Parameters
@@ -551,21 +632,65 @@ class TimeSeries:
             [1.56571830e+09, 5.83333333e-01, 2.04479746e+01, ...,
              8.54166667e-01, 7.78839232e+00, 3.19808880e+00]])
         """
-        ts = TimeSeries(shape=self.shape, labels=self.labels.copy(), time=self._time)
+        ts: TimeSeries = TimeSeries(shape=self.shape, labels=self.labels.copy(), time=self._time)
         ts.data = self.data.copy()
         return ts
 
 
-def delegate(cls, attr_name, method_name):
+def delegate(cls, attr_name: str, method_name: str):
     def delegated(self, *vargs, **kwargs):
         a = getattr(self, attr_name)
         m = getattr(a, method_name)
         return m(*vargs, **kwargs)
+
     setattr(cls, method_name, delegated)
 
-dunder_funcs = ['truediv', 'add', 'sub', 'mul', 'floordiv', 'mod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or', 'iadd', 'isub', 'imul', 'idiv', 'ifloordiv', 'imod', 'ipow', 'ilshift', 'irshift', 'iand', 'ixor', 'radd', 'rsub', 'rmul', 'rdiv', 'rfloordiv', 'rmod', 'rpow', 'rlshift', 'rand', 'rxor', 'ror', 'lt', 'le', 'ne', 'eq', 'gt', 'ge','len']
+
+dunder_funcs = [
+    "truediv",
+    "add",
+    "sub",
+    "mul",
+    "floordiv",
+    "mod",
+    "pow",
+    "lshift",
+    "rshift",
+    "and",
+    "xor",
+    "or",
+    "iadd",
+    "isub",
+    "imul",
+    "idiv",
+    "ifloordiv",
+    "imod",
+    "ipow",
+    "ilshift",
+    "irshift",
+    "iand",
+    "ixor",
+    "radd",
+    "rsub",
+    "rmul",
+    "rdiv",
+    "rfloordiv",
+    "rmod",
+    "rpow",
+    "rlshift",
+    "rand",
+    "rxor",
+    "ror",
+    "lt",
+    "le",
+    "ne",
+    "eq",
+    "gt",
+    "ge",
+    "len",
+]
 
 # proxy the magic methods to the numpy array
 for name in dunder_funcs:
     name = f"__{name}__"
-    delegate(TimeSeries, 'data', name)
+    delegate(TimeSeries, "data", name)

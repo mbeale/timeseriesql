@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Any, Dict
+from typing import Callable, Any, Dict, List
 from .timeseries import TimeSeries
 
 
@@ -20,7 +20,7 @@ def generate_ylabel(ts: TimeSeries) -> str:
     return "Value"
 
 
-def generate_legend_labels(ts: TimeSeries) -> Dict[str, str]:
+def generate_legend_labels(ts: TimeSeries) -> List[str]:
     common_labels = ts._get_unique_keys().keys()
     labels = []
     for l in ts.labels:
@@ -38,8 +38,8 @@ class Plot:
     title_func: Callable[[Any], str] = generate_title
     xlabel_func: Callable[[Any], str] = generate_xlabel
     ylabel_func: Callable[[Any], str] = generate_ylabel
-    legend_labels_func: Callable[[Any], str] = generate_legend_labels
-    chart_options_func: Callable[[Any], str] = generate_chart_options
+    legend_labels_func: Callable[[Any], List[str]] = generate_legend_labels
+    chart_options_func: Callable[[Any], Dict[str, str]] = generate_chart_options
 
     def line_plot(self, ts: TimeSeries, **kwargs):
         """ Plot all TimeSeries columns as a line """
@@ -87,4 +87,8 @@ class Plot:
 
     def polar_plot(self, ts: TimeSeries, **kwargs):
         """ Plot a polar plot """
+        raise NotImplementedError
+
+    def lag_plot(self, ts: TimeSeries, **kwargs):
+        """ Plot a lag plot """
         raise NotImplementedError
